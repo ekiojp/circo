@@ -1,0 +1,45 @@
+# Expand FS, Enable SSH/SPI and Update - Need Reboot
+sudo raspi-config 
+
+# Install Software
+sudo apt-get install python-pip
+sudo apt-get install git
+sudo apt-get install aircrack-ng
+
+/////////// Optional for TFT Display
+sudo apt-get install fbi libsdl-dev libsdl-image1.2-dev libsdl-mixer1.2-dev libsdl-ttf2.0-dev
+sudo apt-get install libsmpeg-dev libportmidi-dev libavformat-dev libswscale-dev mplayer
+
+# Support for Adafruit 2.8" TFT (Optional) - Need Reboot
+# https://learn.adafruit.com/adafruit-pitft-28-inch-resistive-touchscreen-display-raspberry-pi
+wget https://raw.githubusercontent.com/adafruit/Raspberry-Pi-Installer-Scripts/master/adafruit-pitft.sh
+chmod +x adafruit-pitft.sh
+sudo ./adafruit-pitft.sh
+///////////
+
+# Install Scapy
+git clone https://github.com/secdev/scapy
+cd scapy
+sudo python setup.py install && cd .. && sudo rm -rf scapy
+
+# Get a copy of CIRCO
+cd ~
+git clone https://github.com/ekiojp/circo
+
+# Install Requirementes
+cd ~/circo/jaula_v1
+sudo pip install -r requirements.txt
+
+# Startup Config (vi /etc/rc.local)
+# Using channel #10
+sudo /usr/sbin/airmon-ng start wlan0 10 >/dev/null
+
+# Play video or display pic in TFT (Optional)
+sudo ~/circo/jaula_v1/play-video.sh ~/circo/jaula_v1/matrix.mp4
+sudo ~/circo/jaula_v1/play-pic.sh ~/circo/jaula_v1/circo.png
+
+# Start jaula on the background (use -t for TFT support)
+sudo ~/circo/jaula_v1/jaula_v1.py -i wlan0mon -f ~/CRED.txt &
+
+# REMEMBER!
+# change "phrase" & "salt" in jaula_v1.py to match circo_v1.py

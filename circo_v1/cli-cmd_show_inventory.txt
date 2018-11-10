@@ -1,0 +1,9 @@
+NAME: "c3xxx Stack", DESCR: "c3xxx Stack"
+PID: WS-C3850-48P      , VID: M0   , SN: <SERIAL>
+
+NAME: "Switch 1", DESCR: "WS-C3850-48P"
+PID: WS-C3850-48P      , VID: M0   , SN: <SERIAL>
+
+NAME: "Switch 1 - Power Supply A", DESCR: "Switch 1 - Power Supply A"
+PID: PWR-C1-1100WAC    , VID: V01  , SN: <SNPSU>
+

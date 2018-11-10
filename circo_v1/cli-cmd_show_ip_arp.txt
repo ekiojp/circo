@@ -1,0 +1,3 @@
+Protocol  Address          Age (min)  Hardware Addr   Type   Interface
+Internet  <IP>           -   <MAC>  ARPA   Vlan100
+Internet  <GWIP>              1  <GWMAC>  ARPA   Vlan100

@@ -1,0 +1,375 @@
+Building configuration...
+
+Current configuration : 5877 bytes
+!
+! Last configuration change at 20:52:01 UTC Mon Dec 18 2017
+!
+version 15.2
+no service pad
+service timestamps debug datetime msec
+service timestamps log datetime msec
+no service password-encryption
+service compress-config
+!
+hostname <NAME>
+!
+boot-start-marker
+boot-end-marker
+!
+!
+vrf definition Mgmt-vrf
+ !
+ address-family ipv4
+ exit-address-family
+ !
+ address-family ipv6
+ exit-address-family
+!
+username <USER> 5 $1$nOkE/nuWa8knqOOmb/qJkP5k1mp
+!
+enable secret 5 $1$HNcX$DQxC1uVbXXR/kdYVG8oQj.
+!
+no aaa new-model
+switch 1 provision ws-c3850-48p
+!
+!
+!
+!
+!
+coap http enable
+!
+!
+!
+!
+!
+!
+ip routing
+!
+no ip domain-lookup
+!
+!
+qos queue-softmax-multiplier 100
+!
+crypto pki trustpoint TP-self-signed-1916950298
+ enrollment selfsigned
+ subject-name cn=IOS-Self-Signed-Certificate-1916950298
+ revocation-check none
+ rsakeypair TP-self-signed-1916950298
+!
+!
+crypto pki certificate chain TP-self-signed-1916950298
+ certificate self-signed 01
+  3082022B 30820194 A0030201 02020101 300D0609 2A864886 F70D0101 05050030
+  31312F30 2D060355 04031326 494F532D 53656C66 2D536967 6E65642D 43657274
+  69666963 6174652D 31393136 39353032 3938301E 170D3137 30333133 32323432
+  30345A17 0D323030 31303130 30303030 305A3031 312F302D 06035504 03132649
+  4F532D53 656C662D 5369676E 65642D43 65727469 66696361 74652D31 39313639
+  35303239 3830819F 300D0609 2A864886 F70D0101 01050003 818D0030 81890281
+  8100C2BB BF1EED6A F5779E3A 004BA064 F4D1E80C 9D0C3EE0 DDCB884A B4BD975C
+  ADE6FF11 C16D8575 2F1C4727 F3FADEBD 65609947 26555C58 FF9A4E04 BF2F52B6
+  537029C1 90B8C8F9 CDB4A3AA DC40C66B AEDFEFBE C25CE5A9 2433F288 568E58F2
+  595FCB45 1A86E940 780D8D37 B8DC1DDD 785F7DF0 A4AD0B01 3B192348 91569DBB
+  9CDB0203 010001A3 53305130 0F060355 1D130101 FF040530 030101FF 301F0603
+  551D2304 18301680 14932C70 FBD921F5 D902B9C0 7A1DAAA5 74C0B372 57301D06
+  03551D0E 04160414 932C70FB D921F5D9 02B9C07A 1DAAA574 C0B37257 300D0609
+  2A864886 F70D0101 05050003 8181003B D6574FD3 41DD1D84 1F3C3237 AFF4B1C1
+  903C305E 699D7FF0 6806D1B3 C849C82C F8501C62 3E938ECF 828C3352 EEA322CD
+  31299501 F1768485 2D6A4235 DD574A37 C4A5D24B B2539283 0F197183 C5F00B52
+  9200857B 57A86E1A 5C505F1D 915A688F 95CB2F83 FC5A6832 FCEEFAE1 9EC1C2E2
+  C889B28E 030150F1 A6054390 FDE97E
+        quit
+diagnostic bootup level minimal
+!
+spanning-tree mode rapid-pvst
+spanning-tree extend system-id
+spanning-tree vlan 100 priority 57344
+hw-switch switch 1 logging onboard message level 3
+!
+redundancy
+ mode sso
+!
+!
+!
+class-map match-any non-client-nrt-class
+!
+policy-map port_child_policy
+ class non-client-nrt-class
+  bandwidth remaining ratio 10
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+interface GigabitEthernet0/0
+ vrf forwarding Mgmt-vrf
+ no ip address
+ negotiation auto
+!
+interface GigabitEthernet1/0/1
+!
+interface GigabitEthernet1/0/2
+!
+interface GigabitEthernet1/0/3
+ description **SW**
+ switchport access vlan 100
+ switchport mode access
+!
+interface GigabitEthernet1/0/4
+ description **PC**
+ switchport access vlan 100
+ switchport mode access
+!
+interface GigabitEthernet1/0/5
+ description **PC**
+ switchport access vlan 100
+ switchport mode access
+!
+interface GigabitEthernet1/0/6
+ description **PC**
+ switchport access vlan 100
+ switchport mode access
+!
+interface GigabitEthernet1/0/7
+ description **PC**
+ switchport access vlan 100
+ switchport mode access
+!
+interface GigabitEthernet1/0/8
+ description **PC**
+ switchport access vlan 100
+ switchport mode access
+!
+interface GigabitEthernet1/0/9
+ description **PC**
+ switchport access vlan 100
+ switchport mode access
+!
+interface GigabitEthernet1/0/10
+ description **PC**
+ switchport access vlan 100
+ switchport mode access
+!
+interface GigabitEthernet1/0/11
+ description **PC**
+ switchport access vlan 100
+ switchport mode access
+!
+interface GigabitEthernet1/0/12
+ description **PC**
+ switchport access vlan 100
+ switchport mode access
+!
+interface GigabitEthernet1/0/13
+ description **PC**
+ switchport access vlan 100
+ switchport mode access
+!
+interface GigabitEthernet1/0/14
+ description **Phone**
+ switchport access vlan 100
+ switchport mode access
+!
+interface GigabitEthernet1/0/15
+ description **Phone**
+ switchport access vlan 100
+ switchport mode access
+!
+interface GigabitEthernet1/0/16
+ description **Phone**
+ switchport access vlan 100
+ switchport mode access
+!
+interface GigabitEthernet1/0/17
+ description **Phone**
+ switchport access vlan 100
+ switchport mode access
+!
+interface GigabitEthernet1/0/18
+ description **Phone**
+ switchport access vlan 100
+ switchport mode access
+!
+interface GigabitEthernet1/0/19
+ description **Phone**
+ switchport access vlan 100
+ switchport mode access
+!
+interface GigabitEthernet1/0/20
+ switchport access vlan 100
+ switchport mode access
+!
+interface GigabitEthernet1/0/21
+ switchport access vlan 100
+ switchport mode access
+!
+interface GigabitEthernet1/0/22
+ switchport access vlan 100
+ switchport mode access
+!
+interface GigabitEthernet1/0/23
+ switchport access vlan 100
+ switchport mode access
+!
+interface GigabitEthernet1/0/24
+ switchport access vlan 100
+ switchport mode access
+!
+interface GigabitEthernet1/0/25
+ switchport access vlan 100
+ switchport mode access
+!
+interface GigabitEthernet1/0/26
+ switchport access vlan 100
+ switchport mode access
+!
+interface GigabitEthernet1/0/27
+ switchport access vlan 100
+ switchport mode access
+!
+interface GigabitEthernet1/0/28
+ switchport access vlan 100
+ switchport mode access
+!
+interface GigabitEthernet1/0/29
+ switchport access vlan 100
+ switchport mode access
+!
+interface GigabitEthernet1/0/30
+ switchport access vlan 100
+ switchport mode access
+!
+interface GigabitEthernet1/0/31
+ switchport access vlan 100
+ switchport mode access
+!
+interface GigabitEthernet1/0/32
+ switchport access vlan 100
+ switchport mode access
+!
+interface GigabitEthernet1/0/33
+ switchport access vlan 100
+ switchport mode access
+!
+interface GigabitEthernet1/0/34
+ switchport access vlan 100
+ switchport mode access
+!
+interface GigabitEthernet1/0/35
+ switchport access vlan 100
+ switchport mode access
+!
+interface GigabitEthernet1/0/36
+ switchport access vlan 100
+ switchport mode access
+!
+interface GigabitEthernet1/0/37
+ switchport access vlan 100
+ switchport mode access
+!
+interface GigabitEthernet1/0/38
+ switchport access vlan 100
+ switchport mode access
+!
+interface GigabitEthernet1/0/39
+ switchport access vlan 100
+ switchport mode access
+!
+interface GigabitEthernet1/0/40
+ switchport access vlan 100
+ switchport mode access
+!
+interface GigabitEthernet1/0/41
+ switchport access vlan 100
+ switchport mode access
+!
+interface GigabitEthernet1/0/42
+ switchport access vlan 100
+ switchport mode access
+!
+interface GigabitEthernet1/0/43
+ switchport access vlan 100
+ switchport mode access
+!
+interface GigabitEthernet1/0/44
+ switchport access vlan 100
+ switchport mode access
+!
+interface GigabitEthernet1/0/45
+ switchport access vlan 100
+ switchport mode access
+!
+interface GigabitEthernet1/0/46
+ switchport access vlan 100
+ switchport mode access
+!
+interface GigabitEthernet1/0/47
+ switchport access vlan 100
+ switchport mode access
+!
+interface GigabitEthernet1/0/48
+ switchport access vlan 100
+ switchport mode access
+!
+interface Vlan1
+ no ip address
+ shutdown
+!
+interface Vlan100
+ description **SW**
+ ip address <IP> <MASK>
+!
+ip forward-protocol nd
+no ip http server
+ip http authentication local
+no ip http secure-server
+ip route 0.0.0.0 0.0.0.0 <GWIP>
+!
+!
+!
+snmp-server community <SNMPC> RO
+!
+!
+line con 0
+ stopbits 1
+line aux 0
+ stopbits 1
+line vty 0 4
+ login
+line vty 5 15
+ login
+!
+wsma agent exec
+ profile httplistener
+ profile httpslistener
+!
+wsma agent config
+ profile httplistener
+ profile httpslistener
+!
+wsma agent filesys
+ profile httplistener
+ profile httpslistener
+!
+wsma agent notify
+ profile httplistener
+ profile httpslistener
+!
+!
+wsma profile listener httplistener
+ transport http
+!
+wsma profile listener httpslistener
+ transport https
+!
+ap group default-group
+end
+

@@ -1,0 +1,52 @@
+Interface                      Status         Protocol Description
+Gi0/0                          down           down
+Vl1                            admin down     down
+Vl100                          up             up       **SW**
+Gi1/0/1                        down           down     **PC**
+Gi1/0/2                        down           down     **PC**
+Gi1/0/3                        up             up       **SW**
+Gi1/0/4                        up             up       **PC**
+Gi1/0/5                        down           down     **PC**
+Gi1/0/6                        down           down     **PC**
+Gi1/0/7                        down           down     **PC**
+Gi1/0/8                        down           down     **PC**
+Gi1/0/9                        down           down     **PC**
+Gi1/0/10                       down           down     **PC**
+Gi1/0/11                       down           down     **PC**
+Gi1/0/12                       down           down     **PC**
+Gi1/0/13                       down           down     **PC**
+Gi1/0/14                       down           down     **Phone**
+Gi1/0/15                       up             up       **Phone**
+Gi1/0/16                       down           down     **Phone**
+Gi1/0/17                       down           down     **Phone**
+Gi1/0/18                       down           down     **Phone**
+Gi1/0/19                       down           down     **Phone**
+Gi1/0/20                       down           down
+Gi1/0/21                       down           down
+Gi1/0/22                       down           down
+Gi1/0/23                       down           down
+Gi1/0/24                       down           down
+Gi1/0/25                       down           down
+Gi1/0/26                       down           down
+Gi1/0/27                       down           down
+Gi1/0/28                       down           down
+Gi1/0/29                       down           down
+Gi1/0/30                       down           down
+Gi1/0/31                       down           down
+Gi1/0/32                       down           down
+Gi1/0/33                       down           down
+Gi1/0/34                       down           down
+Gi1/0/35                       down           down
+Gi1/0/36                       down           down
+Gi1/0/37                       down           down
+Gi1/0/38                       down           down
+Gi1/0/39                       down           down
+Gi1/0/40                       down           down
+Gi1/0/41                       down           down
+Gi1/0/42                       down           down
+Gi1/0/43                       down           down
+Gi1/0/44                       down           down
+Gi1/0/45                       down           down
+Gi1/0/46                       down           down
+Gi1/0/47                       down           down
+Gi1/0/48                       down           down
