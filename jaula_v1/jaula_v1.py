@@ -15,14 +15,15 @@ from scapy.all import Dot11, Dot11Elt, Dot11Beacon, sniff
 
 # Me
 __author__ = "Emilio / @ekio_jp"
-__version__ = "1.2"
+__version__ = "1.3"
 
 # Define Config
 phrase = 'Waaaaa! awesome :)'
 salt = 'salgruesa'
 
 # Setup
-motd = 'jaula-logo'
+dirname = '/home/pi/circo/jaula_v1/'
+motd = dirname + 'jaula-logo'
 DEBUG = False
 TFT = False
 pktlen = 0

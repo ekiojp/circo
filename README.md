@@ -67,6 +67,8 @@ The PoE & DC-DC are used to provide power (5V) to the Raspberry
 
 [HIVE AV Tokyo 2018](https://speakerdeck.com/ekio_jp/circo-hive-av-tokyo-2018)
 
+[YOROZU SECCON 2018](https://speakerdeck.com/ekio_jp/circo-yorozu-seccon-2018)
+
 
 ----
 
@@ -79,6 +81,7 @@ The PoE & DC-DC are used to provide power (5V) to the Raspberry
 - [ ] Wifi Pineapple Module (jaula_v1.py)
 - [ ] Include Automation SRC IP in the exfiltration
 - [ ] Port code into NodeMCU/Arduino for jaula_v1.py
+- [*] Add LLDP Support
 
 ----
 

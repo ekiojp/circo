@@ -13,7 +13,7 @@ from scapy.all import Raw, IP, ICMP, TCP, UDP, DNS, sniff
 
 # Me
 __author__ = "Emilio / @ekio_jp"
-__version__ = "1.2"
+__version__ = "1.3"
 
 # Define Config
 phrase = 'Waaaaa! awesome :)'
@@ -21,7 +21,8 @@ salt = 'salgruesa'
 ccname = 'evil.sub.domain'
 
 # Setup
-motd = 'carpa-logo'
+dirname = '/home/pi/circo/carpa_v1/'
+motd = dirname + 'carpa-logo'
 DEBUG = False
 ipktlen = 0
 ipkttotal = 200

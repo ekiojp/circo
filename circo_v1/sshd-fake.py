@@ -19,7 +19,7 @@ from paramiko.py3compat import b, u, decodebytes
 
 # Me
 __author__ = "Emilio / @ekio_jp"
-__version__ = "1.2"
+__version__ = "1.3"
 
 # Config
 dirname = '/home/pi/circo/circo_v1/'
@@ -27,7 +27,7 @@ mastercred = sys.argv[1]
 fd = dirname + 'cli.conf'
 sshkey = dirname + 'ssh_rsa.key'
 welcome_message = '\r\n------------------------------------------------------------------------\r\n- Warning: These facilities are solely for the use of authorized       -\r\n- employees or agents of the Company, its subsidiaries and affiliates. -\r\n- Unauthorized use is prohibited and subject to criminal and civil     -\r\n- penalties. Subject to applicable law, individuals using this         -\r\n- computer system must have no expectation of privacy and are subject  -\r\n- to having all of their activities monitored and recorded.            -\r\n------------------------------------------------------------------------\r\n\r\n'
-patterns = [r'^cl.*', r'^disa.*', r'^disc.*', r'^en.*', r'^ex.*', r'^he.*', r'^logi.*', r'^logo.*', r'^sh.*ve.*', r'^sh.*ip.*int.*', r'^sh.*inv.*', r'^sh.*in.*st.*', r'^sh.*ip.*ro.*', r'^wr.*me.*', r'^\?', r'^sh.*run.*', r'^sh.*star.*', r'^sh.*mac.*add.*', r'^sh.*vlan', r'^sh.*ip.*arp', r'^sh.*int.*des.*', r'sh.*cdp.*nei.*']
+patterns = [r'^cl.*', r'^disa.*', r'^disc.*', r'^en.*', r'^ex.*', r'^he.*', r'^logi.*', r'^logo.*', r'^sh.*ve.*', r'^sh.*ip.*int.*', r'^sh.*inv.*', r'^sh.*in.*st.*', r'^sh.*ip.*ro.*', r'^wr.*me.*', r'^\?', r'^sh.*run.*', r'^sh.*star.*', r'^sh.*mac.*add.*', r'^sh.*vlan', r'^sh.*ip.*arp', r'^sh.*int.*des.*', r'sh.*cdp.*nei.*', r'sh.*lldp.*nei.*']
 
 
 # Paramiko Server Class
@@ -117,6 +117,15 @@ class sshd(threading.Thread):
                 m = re.search('<CDPMODEL>,.*', line)
                 if m:
                     self.CDPMODEL = m.group().split(',')[1]
+                m = re.search('<INT>,.*', line)
+                if m:
+                    self.INT = m.group().split(',')[1]
+                m = re.search('<LLDPNAME>,.*', line)
+                if m:
+                    self.LLDPNAME = m.group().split(',')[1]
+                m = re.search('<LLDPINT>,.*', line)
+                if m:
+                    self.LLDPINT = m.group().split(',')[1]
         self.enaprompt = False
         self.prompt = self.NAME + '>'
         self.promptenable = self.NAME + '#'
@@ -127,7 +136,7 @@ class sshd(threading.Thread):
         # ?,help
         if results[5] or results[14]:
             self.chan.send('?\r\n')
-            with open('cli-cmd_help.txt', 'r') as shhelp:
+            with open(dirname + 'cli-cmd_help.txt', 'r') as shhelp:
                 self.chan.send('Exec commands:\r\n')
                 for line in shhelp:
                     self.chan.send('  ' + line.strip() + '\r\n')
@@ -139,14 +148,14 @@ class sshd(threading.Thread):
         # show ip int brief
         elif results[9]:
             self.chan.send('\r\n')
-            with open('cli-cmd_show_ip_int.txt', 'r') as ipbrief:
+            with open(dirname + 'cli-cmd_show_ip_int.txt', 'r') as ipbrief:
                 for line in ipbrief:
                     tosend = line.replace('<IP>', self.IP)
                     self.chan.send(tosend.strip('\n') + '\r\n')
         # show inventory
         elif results[10]:
             self.chan.send('\r\n')
-            with open('cli-cmd_show_inventory.txt', 'r') as inventory:
+            with open(dirname + 'cli-cmd_show_inventory.txt', 'r') as inventory:
                 for line in inventory:
                     tosend = line.replace('<SERIAL>', self.SERIAL)
                     tosend = tosend.replace('<SNPSU>', self.SNPSU)
@@ -154,13 +163,13 @@ class sshd(threading.Thread):
         # show interface status
         elif results[11]:
             self.chan.send('\r\n')
-            with open('cli-cmd_show_int_status.txt', 'r') as intstatus:
+            with open(dirname + 'cli-cmd_show_int_status.txt', 'r') as intstatus:
                 for line in intstatus:
                     self.chan.send(line.strip('\n') + '\r\n')
         # show ip route
         elif results[12]:
             self.chan.send('\r\n')
-            with open('cli-cmd_show_ip_route.txt', 'r') as iproute:
+            with open(dirname + 'cli-cmd_show_ip_route.txt', 'r') as iproute:
                 for line in iproute:
                     tosend = line.replace('<NETIP>', self.NETIP)
                     tosend = tosend.replace('<MASKCIDR>', self.MASKCIDR)
@@ -173,7 +182,7 @@ class sshd(threading.Thread):
         # show version
         elif results[8]:
             self.chan.send('\r\n')
-            with open('cli-cmd_version.txt', 'r') as ver:
+            with open(dirname + 'cli-cmd_version.txt', 'r') as ver:
                 for line in ver:
                     tosend = line.replace('<NAME>', self.NAME)
                     tosend = tosend.replace('<SERIAL>', self.SERIAL)
@@ -181,7 +190,7 @@ class sshd(threading.Thread):
         # show running
         elif (results[15] or results[16]) and self.enaprompt:
             self.chan.send('\r\n')
-            with open('cli-cmd_show_run.txt', 'r') as ver:
+            with open(dirname + 'cli-cmd_show_run.txt', 'r') as ver:
                 for line in ver:
                     tosend = line.replace('<NAME>', self.NAME)
                     tosend = tosend.replace('<IP>', self.IP)
@@ -193,7 +202,7 @@ class sshd(threading.Thread):
         # show mac address
         elif results[17]:
             self.chan.send('\r\n')
-            with open('cli-cmd_show_mac_address.txt', 'r') as ver:
+            with open(dirname + 'cli-cmd_show_mac_address.txt', 'r') as ver:
                 for line in ver:
                     tosend = line.replace('<GWMAC>', self.GWMAC)
                     tosend = tosend.replace('<MAC>', self.MAC)
@@ -201,13 +210,13 @@ class sshd(threading.Thread):
         # show vlan
         elif results[18]:
             self.chan.send('\r\n')
-            with open('cli-cmd_show_vlan.txt', 'r') as ver:
+            with open(dirname + 'cli-cmd_show_vlan.txt', 'r') as ver:
                 for line in ver:
                     self.chan.send(line.strip('\n') + '\r\n')
         # show ip arp
         elif results[19]:
             self.chan.send('\r\n')
-            with open('cli-cmd_show_ip_arp.txt', 'r') as ver:
+            with open(dirname + 'cli-cmd_show_ip_arp.txt', 'r') as ver:
                 for line in ver:
                     tosend = line.replace('<IP>', self.IP)
                     tosend = tosend.replace('<MAC>', self.MAC)
@@ -217,17 +226,28 @@ class sshd(threading.Thread):
         # show int desc
         elif results[20]:
             self.chan.send('\r\n')
-            with open('cli-cmd_show_int_desc.txt', 'r') as ver:
+            with open(dirname + 'cli-cmd_show_int_desc.txt', 'r') as ver:
                 for line in ver:
                     self.chan.send(line.strip('\n') + '\r\n')
         # show cdp nei
         elif results[21]:
             self.chan.send('\r\n')
-            with open('cli-cmd_show_cdp_nei.txt', 'r') as ver:
+            with open(dirname + 'cli-cmd_show_cdp_nei.txt', 'r') as ver:
                 for line in ver:
                     tosend = line.replace('<CDPNAME>', self.CDPNAME)
                     tosend = tosend.replace('<CDPINT>', self.CDPINT)
                     tosend = tosend.replace('<CDPMODEL>', self.CDPMODEL)
+                    tosend = tosend.replace('<NUM>',
+                                            str(random.randint(10, 199)))
+                    self.chan.send(tosend.strip('\n') + '\r\n')
+        # show lldp nei
+        elif results[22]:
+            self.chan.send('\r\n')
+            with open(dirname + 'cli-cmd_show_lldp_nei.txt', 'r') as ver:
+                for line in ver:
+                    tosend = line.replace('<LLDPNAME>', self.LLDPNAME)
+                    tosend = tosend.replace('<LLDPINT>', self.LLDPINT)
+                    tosend = tosend.replace('<INT>', self.INT)
                     tosend = tosend.replace('<NUM>',
                                             str(random.randint(10, 199)))
                     self.chan.send(tosend.strip('\n') + '\r\n')

