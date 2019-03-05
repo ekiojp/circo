@@ -69,6 +69,8 @@ The PoE & DC-DC are used to provide power (5V) to the Raspberry
 
 [YOROZU SECCON 2018](https://speakerdeck.com/ekio_jp/circo-yorozu-seccon-2018)
 
+[Hamasec - Feb 2019](https://speakerdeck.com/ekio_jp/circo-hamasec-feb-2019)
+
 
 ----
 
