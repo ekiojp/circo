@@ -9,5 +9,5 @@ Codes: C - connected, S - static, R - RIP, M - mobile, B - BGP
 Gateway of last resort is not set
 
      <NETIP>/<MASKCIDR> is subnetted, 1 subnets
-C    <NETIP>/<MASKCIDR> is directly connected, GigabitEthernet1/0/3
+C    <NETIP>/<MASKCIDR> is directly connected, FastEthernet0/3
 S    0.0.0.0/0 [1/0] via <GWIP>

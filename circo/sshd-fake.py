@@ -19,23 +19,26 @@ from paramiko.py3compat import b, u, decodebytes
 
 # Me
 __author__ = "Emilio / @ekio_jp"
-__version__ = "1.3"
+__version__ = "1.4"
 
 # Config
-dirname = '/home/pi/circo/circo_v1/'
+dirname = '/home/pi/circo/circo/'
 mastercred = sys.argv[1]
 fd = dirname + 'cli.conf'
 sshkey = dirname + 'ssh_rsa.key'
+srcip = ''
 welcome_message = '\r\n------------------------------------------------------------------------\r\n- Warning: These facilities are solely for the use of authorized       -\r\n- employees or agents of the Company, its subsidiaries and affiliates. -\r\n- Unauthorized use is prohibited and subject to criminal and civil     -\r\n- penalties. Subject to applicable law, individuals using this         -\r\n- computer system must have no expectation of privacy and are subject  -\r\n- to having all of their activities monitored and recorded.            -\r\n------------------------------------------------------------------------\r\n\r\n'
-patterns = [r'^cl.*', r'^disa.*', r'^disc.*', r'^en.*', r'^ex.*', r'^he.*', r'^logi.*', r'^logo.*', r'^sh.*ve.*', r'^sh.*ip.*int.*', r'^sh.*inv.*', r'^sh.*in.*st.*', r'^sh.*ip.*ro.*', r'^wr.*me.*', r'^\?', r'^sh.*run.*', r'^sh.*star.*', r'^sh.*mac.*add.*', r'^sh.*vlan', r'^sh.*ip.*arp', r'^sh.*int.*des.*', r'sh.*cdp.*nei.*', r'sh.*lldp.*nei.*']
+patterns = [r'^cl.*', r'^disa.*', r'^disc.*', r'^en.*', r'^ex.*', r'^he.*', r'^logi.*', r'^logo.*', r'^sh.*ve.*', r'^sh.*ip.*int.*', r'^sh.*inv.*', r'^sh.*in.*st.*', r'^sh.*ip.*ro.*', r'^wr.*me.*', r'^\?', r'^sh.*run.*', r'^sh.*star.*', r'^sh.*mac.*add.*', r'^sh.*vlan', r'^sh.*ip.*arp', r'^sh.*int.*des.*', r'sh.*cdp.*nei.*', r'sh.*lldp.*nei.*', r'term.*']
 
 
-# Paramiko Server Class
-
-
-class Server (paramiko.ServerInterface):
+# Classes
+class Server(paramiko.ServerInterface):
+    """
+    Paramiko Server Class, add extra function to get user
+    """
     def __init__(self):
         self.event = threading.Event()
+        self.USER = ''
 
     def check_channel_request(self, kind, chanid):
         if kind == 'session':
@@ -44,10 +47,10 @@ class Server (paramiko.ServerInterface):
 
     def check_auth_password(self, username, password):
         self.USER = username.strip()
-        text = 's,' + username.strip() + ',' + password.strip()
+        text = 's,' + username.strip() + ',' + password.strip() + ',' + srcip
         find = re.compile('\\b' + text + '\\b')
         with open(mastercred, 'a+') as sfile:
-            with open(fd, 'r') as xfile:
+            with open(mastercred, 'r') as xfile:
                 m = find.findall(xfile.read())
                 if not m:
                     sfile.write(text + '\n')
@@ -64,15 +67,22 @@ class Server (paramiko.ServerInterface):
                                   pixelwidth, pixelheight, modes):
         return True
 
+    def get_user(self):
+        return self.USER
+
 
 class sshd(threading.Thread):
-
+    """
+    Fake IOS ssh daemon
+    Build commands using cli.conf file
+    """
     def __init__(self, fd, (socket, address)):
         threading.Thread.__init__(self)
         self.socket = socket
         self.address = address
         self.cnt = 0
         self.chan = ''
+        self.USER = ''
         with open(fd, 'r') as sfile:
             for line in sfile:
                 m = re.search('<NAME>,.*', line)
@@ -140,11 +150,13 @@ class sshd(threading.Thread):
                 self.chan.send('Exec commands:\r\n')
                 for line in shhelp:
                     self.chan.send('  ' + line.strip() + '\r\n')
+
         # disable, disconnect, exit, logout
         elif results[1] or results[2] or results[4] or results[7]:
             self.chan.send('\r\n')
             self.chan.close()
             sys.exit(1)
+
         # show ip int brief
         elif results[9]:
             self.chan.send('\r\n')
@@ -152,20 +164,22 @@ class sshd(threading.Thread):
                 for line in ipbrief:
                     tosend = line.replace('<IP>', self.IP)
                     self.chan.send(tosend.strip('\n') + '\r\n')
+
         # show inventory
         elif results[10]:
             self.chan.send('\r\n')
             with open(dirname + 'cli-cmd_show_inventory.txt', 'r') as inventory:
                 for line in inventory:
                     tosend = line.replace('<SERIAL>', self.SERIAL)
-                    tosend = tosend.replace('<SNPSU>', self.SNPSU)
                     self.chan.send(tosend.strip('\n') + '\r\n')
+
         # show interface status
         elif results[11]:
             self.chan.send('\r\n')
             with open(dirname + 'cli-cmd_show_int_status.txt', 'r') as intstatus:
                 for line in intstatus:
                     self.chan.send(line.strip('\n') + '\r\n')
+
         # show ip route
         elif results[12]:
             self.chan.send('\r\n')
@@ -175,18 +189,23 @@ class sshd(threading.Thread):
                     tosend = tosend.replace('<MASKCIDR>', self.MASKCIDR)
                     tosend = tosend.replace('<GWIP>', self.GWIP)
                     self.chan.send(tosend.strip('\n') + '\r\n')
+
         # clear
         elif results[0]:
             self.chan.send('\r\n')
             self.chan.send("\033[H\033[J")
+
         # show version
         elif results[8]:
             self.chan.send('\r\n')
             with open(dirname + 'cli-cmd_version.txt', 'r') as ver:
                 for line in ver:
                     tosend = line.replace('<NAME>', self.NAME)
+                    tosend = tosend.replace('<MAC>', self.MAC)
                     tosend = tosend.replace('<SERIAL>', self.SERIAL)
+                    tosend = tosend.replace('<SNPSU>', self.SNPSU)
                     self.chan.send(tosend.strip('\n') + '\r\n')
+
         # show running
         elif (results[15] or results[16]) and self.enaprompt:
             self.chan.send('\r\n')
@@ -199,6 +218,7 @@ class sshd(threading.Thread):
                     tosend = tosend.replace('<GWIP>', self.GWIP)
                     tosend = tosend.replace('<SNMPC>', self.SNMPC)
                     self.chan.send(tosend.strip('\n') + '\r\n')
+
         # show mac address
         elif results[17]:
             self.chan.send('\r\n')
@@ -207,12 +227,14 @@ class sshd(threading.Thread):
                     tosend = line.replace('<GWMAC>', self.GWMAC)
                     tosend = tosend.replace('<MAC>', self.MAC)
                     self.chan.send(tosend.strip('\n') + '\r\n')
+
         # show vlan
         elif results[18]:
             self.chan.send('\r\n')
             with open(dirname + 'cli-cmd_show_vlan.txt', 'r') as ver:
                 for line in ver:
                     self.chan.send(line.strip('\n') + '\r\n')
+
         # show ip arp
         elif results[19]:
             self.chan.send('\r\n')
@@ -223,13 +245,15 @@ class sshd(threading.Thread):
                     tosend = tosend.replace('<GWIP>', self.GWIP)
                     tosend = tosend.replace('<GWMAC>', self.GWMAC)
                     self.chan.send(tosend.strip('\n') + '\r\n')
+
         # show int desc
         elif results[20]:
             self.chan.send('\r\n')
             with open(dirname + 'cli-cmd_show_int_desc.txt', 'r') as ver:
                 for line in ver:
                     self.chan.send(line.strip('\n') + '\r\n')
-        # show cdp nei
+
+        # show cdp neighbors
         elif results[21]:
             self.chan.send('\r\n')
             with open(dirname + 'cli-cmd_show_cdp_nei.txt', 'r') as ver:
@@ -240,7 +264,8 @@ class sshd(threading.Thread):
                     tosend = tosend.replace('<NUM>',
                                             str(random.randint(10, 199)))
                     self.chan.send(tosend.strip('\n') + '\r\n')
-        # show lldp nei
+
+        # show lldp neighbors
         elif results[22]:
             self.chan.send('\r\n')
             with open(dirname + 'cli-cmd_show_lldp_nei.txt', 'r') as ver:
@@ -251,6 +276,11 @@ class sshd(threading.Thread):
                     tosend = tosend.replace('<NUM>',
                                             str(random.randint(10, 199)))
                     self.chan.send(tosend.strip('\n') + '\r\n')
+
+	# terminal.*
+        elif results[23]:
+            self.chan.send('\r\n')
+
         # write memory
         elif results[13] and self.enaprompt:
             self.chan.send("\r\nBuilding configuration...\r\n")
@@ -258,6 +288,7 @@ class sshd(threading.Thread):
             self.chan.send("Compressed configuration from 23479 bytes \
                            to 104927 bytes\r\n")
             self.chan.send("[OK]\r\n")
+
         # enable,login
         elif results[3] or results[6]:
             self.chan.send('\r\npassword: ')
@@ -266,13 +297,13 @@ class sshd(threading.Thread):
             while True:
                 dat = self.chan.recv(1024)
                 for x in range(len(dat)):
-                    if ord(dat[x]) == 13:
+                    if ord(dat[x]) == 13 or ord(dat[x]) == 10:
                         out = True
                 if out:
-                    text = 's,e,' + buf
+                    text = 's,e,' + buf + ',' + srcip
                     find = re.compile('\\b' + text + '\\b')
                     with open(mastercred, 'a+') as sfile:
-                        with open(fd, 'r') as xfile:
+                        with open(mastercred, 'r') as xfile:
                             m = find.findall(xfile.read())
                             if not m:
                                 sfile.write(text + '\n')
@@ -280,6 +311,7 @@ class sshd(threading.Thread):
                 buf = buf+dat
             self.enaprompt = True
             self.chan.send('\r\n')
+
         # if any other command (unknow/not allowed)
         else:
             if self.enaprompt:
@@ -294,12 +326,14 @@ class sshd(threading.Thread):
             self.chan.send(self.prompt)
 
     def run(self):
+        global srcip
         host_key = paramiko.RSAKey(filename=sshkey)
         t = paramiko.Transport(self.socket)
         t.local_version = 'SSH-2.0-Cisco-1.25'
         t.add_server_key(host_key)
         server = Server()
         try:
+            srcip = strtohex(self.address[0])
             t.start_server(server=server)
         except:
             pass
@@ -307,18 +341,18 @@ class sshd(threading.Thread):
         # wait for auth
         self.chan = t.accept(20)
         if self.chan is None:
-            print('*** No channel.')
+            print('fake-sshd: No channel')
             sys.exit(1)
 
         server.event.wait(10)
         if not server.event.is_set():
-            print('*** Client never asked for a shell.')
+            print('fake-sshd: Client never asked for a shell')
             sys.exit(1)
 
         # display welcome message and login prompt
         self.chan.send(welcome_message)
         self.chan.send(self.prompt)
-
+        self.USER = server.get_user()
         buff = ''
         while t.is_active():
             # wait for keypress + enter
@@ -335,14 +369,14 @@ class sshd(threading.Thread):
                             if len(buff) >= 1:
                                 buff = buff[:-1]
                                 self.chan.send(chr(8) + chr(32) + chr(8))
-                    elif ord(data[x]) == 13:
+                    elif ord(data[x]) == 13 or ord(data[x]) == 10:
                         if len(buff) > 2:
                             self.cmd(buff)
                         else:
                             if self.enaprompt:
                                 self.chan.send('\r\n' + self.promptenable)
                             else:
-                                self.chan.send('\r\n' + self.prompt)
+			        self.chan.send('\r\n' + self.prompt)
                         buff = ''
                     elif ord(data[x]) == 63:
                         self.cmd('?')
@@ -353,26 +387,37 @@ class sshd(threading.Thread):
                         self.chan.send(data)
         # close connection
         self.chan.close()
+	fdump.close()
 
 
-try:
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    sock.bind(('', 22))
-except Exception as e:
-    print('*** Bind failed: ' + str(e))
-    traceback.print_exc()
-    sys.exit(1)
+# Functions
+def strtohex(ip):
+    return ''.join('{:02x}'.format(int(char)) for char in ip.split('.'))
 
-sock.listen(100)
+# Main Function
+def main():
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.bind(('', 22))
+    except Exception as e:
+        print('fake-sshd: Bind failed: ' + str(e))
+        traceback.print_exc()
+        sys.exit(1)
 
-if os.path.isfile(sshkey):
-    subprocess.call(['/bin/rm', '-f', sshkey])
-    subprocess.call("/usr/bin/ssh-keygen -b 1024 -t rsa -N '' -q -f "
-                    + sshkey, shell=True)
-else:
-    subprocess.call("/usr/bin/ssh-keygen -b 1024 -t rsa -N '' -q -f "
-                    + sshkey, shell=True)
+    sock.listen(100)
 
-while True:
-    sshd(fd, sock.accept()).start()
+    if os.path.isfile(sshkey):
+        subprocess.call(['/bin/rm', '-f', sshkey])
+        subprocess.call("/usr/bin/ssh-keygen -b 1024 -t rsa -N '' -q -f "
+                        + sshkey, shell=True)
+    else:
+        subprocess.call("/usr/bin/ssh-keygen -b 1024 -t rsa -N '' -q -f "
+                        + sshkey, shell=True)
+
+    while True:
+        sshd(fd, sock.accept()).start()
+
+# Call main
+if __name__ == '__main__':
+    main()

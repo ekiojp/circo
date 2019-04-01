@@ -1,0 +1,12 @@
+Interface              IP-Address      OK? Method Status                Protocol
+Vlan1                  unassigned      YES NVRAM  down                  down
+Vlan100                <IP>   YES NVRAM  up                    up
+FastEthernet0/1        unassigned      YES unset  down                  down
+FastEthernet0/2        unassigned      YES unset  down                  down
+FastEthernet0/3        unassigned      YES unset  up                    up
+FastEthernet0/4        unassigned      YES unset  up                    up
+FastEthernet0/5        unassigned      YES unset  down                  down
+FastEthernet0/6        unassigned      YES unset  down                  down
+FastEthernet0/7        unassigned      YES unset  down                  down
+FastEthernet0/8        unassigned      YES unset  down                  down
+GigabitEthernet0/1     unassigned      YES unset  down                  down

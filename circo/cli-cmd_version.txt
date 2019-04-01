@@ -1,0 +1,60 @@
+Cisco IOS Software, C2960 Software (C2960-LANBASEK9-M), Version 15.0(2)SE, RELEASE SOFTWARE (fc1)
+Technical Support: http://www.cisco.com/techsupport
+Copyright (c) 1986-2012 by Cisco Systems, Inc.
+Compiled Sat 28-Jul-12 00:29 by prod_rel_team
+
+ROM: Bootstrap program is C2960 boot loader
+BOOTLDR: C2960 Boot Loader (C2960-HBOOT-M) Version 12.2(35r)SE2, RELEASE SOFTWARE (fc1)
+
+<NAME> uptime is 1 day, 17 hours, 1 minute
+System returned to ROM by power-on
+System image file is "flash:/c2960-lanbasek9-mz.150-2.SE/c2960-lanbasek9-mz.150-2.SE.bin"
+
+
+This product contains cryptographic features and is subject to United
+States and local country laws governing import, export, transfer and
+use. Delivery of Cisco cryptographic products does not imply
+third-party authority to import, export, distribute or use encryption.
+Importers, exporters, distributors and users are responsible for
+compliance with U.S. and local country laws. By using this product you
+agree to comply with applicable laws and regulations. If you are unable
+to comply with U.S. and local laws, return this product immediately.
+
+A summary of U.S. laws governing Cisco cryptographic products may be found at:
+http://www.cisco.com/wwl/export/crypto/tool/stqrg.html
+
+If you require further assistance please contact us by sending email to
+export@cisco.com.
+
+cisco WS-C2960-8TC-L (PowerPC405) processor (revision E0) with 65536K bytes of memory.
+Processor board ID <SERIAL>
+Last reset from power-on
+2 Virtual Ethernet interfaces
+8 FastEthernet interfaces
+1 Gigabit Ethernet interface
+The password-recovery mechanism is enabled.
+
+64K bytes of flash-simulated non-volatile configuration memory.
+Base ethernet MAC Address       : <MAC>
+Motherboard assembly number     : 73-10611-08
+Power supply part number        : 341-0208-02
+Motherboard serial number       : <SERIAL>
+Power supply serial number      : <SNPSU>
+Model revision number           : E0
+Motherboard revision number     : A0
+Model number                    : WS-C2960-8TC-L
+System serial number            : <SERIAL>
+Top Assembly Part Number        : 800-28132-03
+Top Assembly Revision Number    : E0
+Version ID                      : V03
+CLEI Code Number                : COMKG00DRA
+Hardware Board Revision Number  : 0x01
+
+
+Switch Ports Model              SW Version            SW Image
+------ ----- -----              ----------            ----------
+*    1 9     WS-C2960-8TC-L     15.0(2)SE             C2960-LANBASEK9-M
+
+
+Configuration register is 0xF
+

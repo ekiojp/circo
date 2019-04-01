@@ -13,24 +13,27 @@ import random
 
 # Me
 __author__ = "Emilio / @ekio_jp"
-__version__ = "1.3"
+__version__ = "1.4"
 
 # Config
-dirname = '/home/pi/circo/circo_v1/'
+dirname = '/home/pi/circo/circo/'
 fd = dirname + 'cli.conf'
 mastercred = sys.argv[1]
 welcome_message = '\n------------------------------------------------------------------------\n- Warning: These facilities are solely for the use of authorized       -\n- employees or agents of the Company, its subsidiaries and affiliates. -\n- Unauthorized use is prohibited and subject to criminal and civil     -\n- penalties. Subject to applicable law, individuals using this         -\n- computer system must have no expectation of privacy and are subject  -\n- to having all of their activities monitored and recorded.            -\n------------------------------------------------------------------------\n\nusername: '
-patterns = [r'^cl.*', r'^disa.*', r'^disc.*', r'^en.*', r'^ex.*', r'^he.*', r'^logi.*', r'^logo.*', r'^sh.*ve.*', r'^sh.*ip.*int.*', r'^sh.*inv.*', r'^sh.*in.*st.*', r'^sh.*ip.*ro.*', r'^wr.*me.*', r'^\?', r'^sh.*run.*', r'^sh.*star.*', r'^sh.*mac.*add.*', r'^sh.*vlan', r'^sh.*ip.*arp', r'^sh.*int.*des.*', r'sh.*cdp.*nei.*', r'sh.*lldp.*nei.*']
+patterns = [r'^cl.*', r'^disa.*', r'^disc.*', r'^en.*', r'^ex.*', r'^he.*', r'^logi.*', r'^logo.*', r'^sh.*ve.*', r'^sh.*ip.*int.*', r'^sh.*inv.*', r'^sh.*in.*st.*', r'^sh.*ip.*ro.*', r'^wr.*me.*', r'^\?', r'^sh.*run.*', r'^sh.*star.*', r'^sh.*mac.*add.*', r'^sh.*vlan', r'^sh.*ip.*arp', r'^sh.*int.*des.*', r'sh.*cdp.*nei.*', r'sh.*lldp.*nei.*', r'term.*']
 
 
-# Telnet Server Class
+# Classes
 class daemon(threading.Thread):
-
+    """
+    Fake IOS telnet service
+    """
     def __init__(self, fd, (socket, address)):
         threading.Thread.__init__(self)
         self.socket = socket
         self.address = address
         self.cnt = 0
+        self.USER = ''
         with open(fd, 'r') as sfile:
             for line in sfile:
                 m = re.search('<NAME>,.*', line)
@@ -99,11 +102,13 @@ class daemon(threading.Thread):
                 self.socket.send('Exec commands:\r\n')
                 for line in shhelp:
                     self.socket.send('  ' + line.strip('\n') + '\r\n')
+
         # disable, disconnect, exit, logout
         elif results[1] or results[2] or results[4] or results[7]:
             self.socket.send('\r\n')
             self.socket.close()
             sys.exit(1)
+
         # show ip int brief
         elif results[9]:
             self.socket.send('\r\n')
@@ -111,20 +116,22 @@ class daemon(threading.Thread):
                 for line in ipbrief:
                     tosend = line.replace('<IP>', self.IP)
                     self.socket.send(tosend.strip('\n') + '\r\n')
+
         # show inventory
         elif results[10]:
             self.socket.send('\r\n')
             with open(dirname + 'cli-cmd_show_inventory.txt', 'r') as inventory:
                 for line in inventory:
                     tosend = line.replace('<SERIAL>', self.SERIAL)
-                    tosend = tosend.replace('<SNPSU>', self.SNPSU)
                     self.socket.send(tosend.strip('\n') + '\r\n')
+
         # show interface status
         elif results[11]:
             self.socket.send('\r\n')
             with open(dirname + 'cli-cmd_show_int_status.txt', 'r') as intstatus:
                 for line in intstatus:
                     self.socket.send(line.strip('\n') + '\r\n')
+
         # show ip route
         elif results[12]:
             self.socket.send('\r\n')
@@ -134,18 +141,23 @@ class daemon(threading.Thread):
                     tosend = tosend.replace('<MASKCIDR>', self.MASKCIDR)
                     tosend = tosend.replace('<GWIP>', self.GWIP)
                     self.socket.send(tosend.strip('\n') + '\r\n')
+
         # clear
         elif results[0]:
             self.socket.send('\r\n')
             self.socket.send("\033[H\033[J")
+
         # show version
         elif results[8]:
             self.socket.send('\r\n')
             with open(dirname + 'cli-cmd_version.txt', 'r') as ver:
                 for line in ver:
                     tosend = line.replace('<NAME>', self.NAME)
+                    tosend = tosend.replace('<MAC>', self.MAC)
                     tosend = tosend.replace('<SERIAL>', self.SERIAL)
+                    tosend = tosend.replace('<SNPSU>', self.SNPSU)
                     self.socket.send(tosend.strip('\n') + '\r\n')
+
         # show running
         elif (results[15] or results[16]) and self.enaprompt:
             self.socket.send('\r\n')
@@ -158,6 +170,7 @@ class daemon(threading.Thread):
                     tosend = tosend.replace('<GWIP>', self.GWIP)
                     tosend = tosend.replace('<SNMPC>', self.SNMPC)
                     self.socket.send(tosend.strip('\n') + '\r\n')
+
         # show mac address
         elif results[17]:
             self.socket.send('\r\n')
@@ -166,12 +179,14 @@ class daemon(threading.Thread):
                     tosend = line.replace('<GWMAC>', self.GWMAC)
                     tosend = tosend.replace('<MAC>', self.MAC)
                     self.socket.send(tosend.strip('\n') + '\r\n')
+
         # show vlan
         elif results[18]:
             self.socket.send('\r\n')
             with open(dirname + 'cli-cmd_show_vlan.txt', 'r') as ver:
                 for line in ver:
                     self.socket.send(line.strip('\n') + '\r\n')
+
         # show ip arp
         elif results[19]:
             self.socket.send('\r\n')
@@ -182,12 +197,14 @@ class daemon(threading.Thread):
                     tosend = tosend.replace('<GWIP>', self.GWIP)
                     tosend = tosend.replace('<GWMAC>', self.GWMAC)
                     self.socket.send(tosend.strip('\n') + '\r\n')
+
         # show int desc
         elif results[20]:
             self.socket.send('\r\n')
             with open(dirname + 'cli-cmd_show_int_desc.txt', 'r') as ver:
                 for line in ver:
                     self.socket.send(line.strip('\n') + '\r\n')
+
         # show cdp nei
         elif results[21]:
             self.socket.send('\r\n')
@@ -199,6 +216,7 @@ class daemon(threading.Thread):
                     tosend = tosend.replace('<NUM>',
                                             str(random.randint(10, 199)))
                     self.socket.send(tosend.strip('\n') + '\r\n')
+
         # show lldp nei
         elif results[22]:
             self.socket.send('\r\n')
@@ -210,6 +228,11 @@ class daemon(threading.Thread):
                     tosend = tosend.replace('<NUM>',
                                             str(random.randint(10, 199)))
                     self.socket.send(tosend.strip('\n') + '\r\n')
+
+        # terminal.*
+        elif results[23] and self.enaprompt:
+            self.socket.send('\r\n')
+
         # write memory
         elif results[13] and self.enaprompt:
             self.socket.send("\r\nBuilding configuration...\r\n")
@@ -217,6 +240,7 @@ class daemon(threading.Thread):
             self.socket.send("Compressed configuration from 23479 bytes \
                              to 104927 bytes\r\n")
             self.socket.send("[OK]\r\n")
+
         # enable,login
         elif results[3] or results[6]:
             self.socket.send('\r\npassword: ')
@@ -225,10 +249,10 @@ class daemon(threading.Thread):
             while True:
                 data = self.socket.recv(1024)
                 for x in range(len(data)):
-                    if ord(data[x]) == 13:
+                    if ord(data[x]) == 13 or ord(data[x]) == 10:
                         out = True
                 if out:
-                    text = 't,e,' + buf
+                    text = 't,e,' + buf + ',' + strtohex(self.address[0])
                     find = re.compile('\\b' + text + '\\b')
                     with open(mastercred, 'a+') as sfile:
                         with open(mastercred, 'r') as xfile:
@@ -236,9 +260,10 @@ class daemon(threading.Thread):
                             if not m:
                                 sfile.write(text + '\n')
                     break
-                buf = buf+data
+                buf = buf + data
             self.enaprompt = True
             self.socket.send('\r\n')
+
         # if any other command (unknow/not allowed)
         else:
             if self.enaprompt:
@@ -356,7 +381,7 @@ class daemon(threading.Thread):
             data = self.socket.recv(1024)
 
             if data and self.cnt == 0:
-                username = data
+                username = data.strip('\b')
                 self.socket.send(chr(0xff) + chr(0xfb) + chr(0x01))
                 data = self.socket.recv(1024)
                 self.socket.send('password: ')
@@ -364,7 +389,7 @@ class daemon(threading.Thread):
                 self.socket.send(chr(0xff) + chr(0xfc) + chr(0x01))
                 data = self.socket.recv(1024)
                 self.socket.send('\n' + self.prompt)
-                text = 't,' + username.strip() + ',' + password.strip()
+                text = 't,' + username.strip() + ',' + password.strip() + ',' + strtohex(self.address[0])
                 find = re.compile('\\b' + text + '\\b')
                 with open(mastercred, 'a+') as sfile:
                     with open(mastercred, 'r') as xfile:
@@ -390,7 +415,7 @@ class daemon(threading.Thread):
                             if len(buff) >= 1:
                                 buff = buff[:-1]
                                 self.socket.send(chr(8) + chr(32) + chr(8))
-                    elif ord(data[x]) == 13:
+                    elif ord(data[x]) == 13 or ord(data[x]) == 10:
                         if len(buff) > 2:
                             self.cmd(buff)
                         else:
@@ -410,12 +435,22 @@ class daemon(threading.Thread):
         self.socket.close()
 
 
-# Bind socket
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-s.bind(('', 23))
-s.listen(1)
-lock = threading.Lock()
+# Funtion
+def strtohex(ip):
+    return ''.join('{:02x}'.format(int(char)) for char in ip.split('.'))
 
-while True:
-    daemon(fd, s.accept()).start()
+# Main Function
+def main():
+    # Bind socket
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    s.bind(('', 23))
+    s.listen(1)
+    lock = threading.Lock()
+
+    while True:
+        daemon(fd, s.accept()).start()
+
+# Call main
+if __name__ == '__main__':
+    main()
