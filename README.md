@@ -125,6 +125,13 @@ p,<community>,<src_ip>
 - [ ] Make the code nicer
 
 ----
+# Disclaimer
+
+The tool is provided for educational, research or testing purposes.<br>
+Using this tool against network/systems without prior permission is illegal.<br>
+The author is not liable for any damages from misuse of this tool, techniques or code.
+
+----
 
 # Author
 
