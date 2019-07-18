@@ -445,7 +445,7 @@ def discover(opciones):
                      filter='ether proto 0x88cc', count=1, timeout=60)
     if cdpname:
         cli.write('<CDPNAME>,'
-                  + cdpname[0][CDPv2_HDR][CDPMsgDeviceID].val + '\n')
+                  + cdpname[0][CDPv2_HDR][CDPMsgDeviceID].val.split('.')[0] + '\n')
         cli.write('<CDPINT>,'
                   + cdpname[0][CDPv2_HDR][CDPMsgPortID].iface + '\n')
         cli.write('<CDPMODEL>,'
@@ -453,7 +453,7 @@ def discover(opciones):
                   + '\n')
     if lldpname:
         cli.write('<LLDPNAME>,'
-                  + lldpname[0][LLDPDU][LLDPDUSystemName].system_name + '\n')
+                  + lldpname[0][LLDPDU][LLDPDUSystemName].system_name.split('.')[0] + '\n')
         cli.write('<LLDPINT>,'
                   + lldpname[0][LLDPDU][LLDPDUPortDescription].description
                   + '\n')
