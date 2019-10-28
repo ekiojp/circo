@@ -1,0 +1,10 @@
+[Unit]
+Description=Decrypt LUKS disks and mount them on boot
+After=network.target
+
+[Service]
+ExecStart=/home/luksmnt.py
+Type=simple
+
+[Install]
+WantedBy=default.target

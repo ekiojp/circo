@@ -1,4 +1,4 @@
-# Install JAULA
+# Install JAULA (Raspberry)
 ***
 ### Getting into
 * Download [Raspbian](https://www.raspberrypi.org/downloads/raspbian/) Lite image (tested with 2018-11-13)
@@ -44,16 +44,6 @@ cd circo/jaula
 sudo pip install -r requirements.txt
 ```
 
-## Optional Support for [Adafruit 2.8" TFT](https://adafruit.com/xxxx)
-Download and run the Adafruit Installer
-```
-wget https://raw.githubusercontent.com/adafruit/Raspberry-Pi-Installer-Scripts/master/adafruit-pitft.sh
-chmod +x adafruit-pitft.sh
-./adafruit-pitft.sh
-```
-Select the correct screen orientation and reboot
-
-
 ## Configure JAULA
 ### Stop DHCP client for wlan0 (wireless dongle)
 ```
@@ -65,35 +55,25 @@ vi jaula.py
 ```
 Look for section below `#Config`
 
-* Change AES `passphrase` and `salt`, these need to match `circo.py`
+* Change AES `PHRASE` and `SALT`, these need to match `circo.py`
 ```
-phrase = 'Waaaaa! awesome :)'
-salt = 'salgruesa'
+PHRASE = 'Waaaaa! awesome :)'
+SALT = 'salgruesa'
 ```
-* Change relative path of JAULA (optional)
+* Change wireless SSID and Channel
 ```
-dirname = '/home/pi/circo/jaula/'
+SSIDROOT = 'aterm-c17c02'
+SSIDALARM = 'pacman'
+WIFICHANNEL = '10'
 ```
 
 ## Starting automatically 
 Add into `/etc/rc.local` 
 ```
-sudo bash -c 'echo "sudo /usr/sbin/airmon-ng start wlan0 10 >/dev/null" >> /etc/rc.local'
-sudo bash -c 'echo "sudo /home/pi/circo/jaula/play-pic.sh /home/pi/circo/jaula/logo-circo.png" >> /etc/rc.local'
 sudo bash -c 'echo "sudo /bin/rm -f /home/pi/circo/jaula/CRED.txt" >> /etc/rc.local'
-sudo bash -c 'echo "sudo /home/pi/circo/jaula/jaula.py -t -i wlan0mon -f /home/pi/circo/jaula/CRED.txt &" >> /etc/rc.local'
+sudo bash -c 'echo "sudo /home/pi/circo/jaula/jaula_rpz.py -i wlan1 -f /home/pi/circo/jaula/CRED.txt &" >> /etc/rc.local'
 ```
 
 ## Notes
-* Channel 10 is used by default between CIRCO and JAULA, if you want to change
-  this, update both `circo.py` and `jaula.py` as below
-
-### jaula.py (Channel 8)
-```
-sudo sed -i 's/wlan0 10/wlan0 8/' /etc/rc.local
-```
-### circo.jp (Channel 8)
-```
-sudo sed -i 's/wiface + \' 10/wiface + \' 8/' circo.py
-```
-
+* WIFICHANNEL=10 is used by default between CIRCO and JAULA, if you want to change
+  this, update both `circo.py` and `jaula_rpz.py` as below

@@ -6,20 +6,17 @@ import sys
 import os
 import socket
 import threading
-import struct
 import time
-import re
 import random
 
 # Me
 __author__ = "Emilio / @ekio_jp"
-__version__ = "1.4"
+__version__ = "1.5.1"
 
 # Config
-dirname = '/home/pi/circo/circo/'
+dirname = '/home/pi-enc/circo/circo/'
 fd = dirname + 'cli.conf'
 mastercred = sys.argv[1]
-welcome_message = '\n------------------------------------------------------------------------\n- Warning: These facilities are solely for the use of authorized       -\n- employees or agents of the Company, its subsidiaries and affiliates. -\n- Unauthorized use is prohibited and subject to criminal and civil     -\n- penalties. Subject to applicable law, individuals using this         -\n- computer system must have no expectation of privacy and are subject  -\n- to having all of their activities monitored and recorded.            -\n------------------------------------------------------------------------\n\nusername: '
 patterns = [r'^cl.*', r'^disa.*', r'^disc.*', r'^en.*', r'^ex.*', r'^he.*', r'^logi.*', r'^logo.*', r'^sh.*ve.*', r'^sh.*ip.*int.*', r'^sh.*inv.*', r'^sh.*in.*st.*', r'^sh.*ip.*ro.*', r'^wr.*me.*', r'^\?', r'^sh.*run.*', r'^sh.*star.*', r'^sh.*mac.*add.*', r'^sh.*vlan', r'^sh.*ip.*arp', r'^sh.*int.*des.*', r'sh.*cdp.*nei.*', r'sh.*lldp.*nei.*', r'term.*']
 
 
@@ -34,6 +31,14 @@ class daemon(threading.Thread):
         self.address = address
         self.cnt = 0
         self.USER = ''
+        self.MOTD = ''
+        self.cli = {}
+        with open(fd, 'r') as sfile:
+            m = sfile.readlines()
+            for x in range(len(m)):
+                q = re.findall('<(.*)>,(.*)', m[x])[0]
+                self.cli[q[0]] = q[1]
+
         with open(fd, 'r') as sfile:
             for line in sfile:
                 m = re.search('<NAME>,.*', line)
@@ -88,6 +93,10 @@ class daemon(threading.Thread):
                 m = re.search('<INT>,.*', line)
                 if m:
                     self.INT = m.group().split(',')[1]
+                m = re.search('<MOTD>,.*', line)
+                if m:
+                    self.MOTD = m.group().split(',')[1]
+                    self.MOTD = self.MOTD.replace('<CR>', '\r\n')
         self.enaprompt = False
         self.prompt = self.NAME+'>'
         self.promptenable = self.NAME+'#'
@@ -166,6 +175,7 @@ class daemon(threading.Thread):
                     tosend = line.replace('<NAME>', self.NAME)
                     tosend = tosend.replace('<USER>', self.USER)
                     tosend = tosend.replace('<IP>', self.IP)
+                    tosend = tosend.replace('<MOTD>', self.MOTD)
                     tosend = tosend.replace('<MASK>', self.MASK)
                     tosend = tosend.replace('<GWIP>', self.GWIP)
                     tosend = tosend.replace('<SNMPC>', self.SNMPC)
@@ -282,127 +292,110 @@ class daemon(threading.Thread):
         # print client neg options (DEBUG)
         dd = self.socket.recv(1024)
 
-        # send my <ACK> to neg
         self.socket.send(
                         chr(0xff) +
-                        chr(0xfc) +
-                        chr(0x03) +
-                        chr(0xff) +
-                        chr(0xfe) +
-                        chr(0x18) +
-                        chr(0xff) +
-                        chr(0xfe) +
-                        chr(0x1f) +
-                        chr(0xff) +
-                        chr(0xfe) +
-                        chr(0x20) +
-                        chr(0xff) +
-                        chr(0xfd) +
-                        chr(0x21) +
-                        chr(0xff) +
-                        chr(0xfd) +
-                        chr(0x22) +
-                        chr(0xff) +
-                        chr(0xfe) +
-                        chr(0x27) +
+                        chr(0xfb) +
+                        chr(0x01) +
                         chr(0xff) +
                         chr(0xfb) +
-                        chr(0x05)
+                        chr(0x03) +
+                        chr(0xff) +
+                        chr(0xfd) +
+                        chr(0x18) +
+                        chr(0xff) +
+                        chr(0xfd) +
+                        chr(0x1f) 
                         )
 
         # recv the WILL (DEBUG)
         dd = self.socket.recv(1024)
 
-        # send my IAC SB LINEMODE MODE EDIT
+        try:
+            self.socket.send(self.MOTD + '\r\n\r\nUser Access Verification\r\n\r\nUsername: ')
+        except:
+            self.socket.close()
+
+        # send IAC SB terminal type
         self.socket.send(
                         chr(0xff) +
                         chr(0xfa) +
-                        chr(0x22) +
+                        chr(0x18) +
                         chr(0x01) +
-                        chr(0x01)
+                        chr(0xff) +
+                        chr(0xf0)
                         )
 
-        # send my IAC SB LINEMODE SLC <ACK>
+        # send DONT terminal speed
         self.socket.send(
                         chr(0xff) +
-                        chr(0xfa) +
-                        chr(0x22) +
-                        chr(0x03) +
-                        chr(0x01) +
-                        chr(0x00) +
-                        chr(0x00) +
-                        chr(0x03) +
-                        chr(0x80) +
-                        chr(0x03) +
-                        chr(0x04) +
-                        chr(0x00) +
-                        chr(0x00) +
-                        chr(0x05) +
-                        chr(0x00) +
-                        chr(0x00) +
-                        chr(0x07) +
-                        chr(0x80) +
-                        chr(0x1c) +
-                        chr(0x08) +
-                        chr(0x80) +
-                        chr(0x04) +
-                        chr(0x09) +
-                        chr(0x00) +
-                        chr(0x00) +
-                        chr(0x0a) +
-                        chr(0x80) +
-                        chr(0x7f) +
-                        chr(0x0b) +
-                        chr(0x80) +
-                        chr(0x15) +
-                        chr(0x0f) +
-                        chr(0x80) +
-                        chr(0x11) +
-                        chr(0x10) +
-                        chr(0x80) +
-                        chr(0x13) +
-                        chr(0xff) +
-                        chr(0xf0) +
-                        chr(0xff) +
-                        chr(0xfc) +
-                        chr(0x03)
+                        chr(0xfe) +
+                        chr(0x20)
                         )
 
-        # recv IAC SB LINEMODE SLC <ACK>
+        # receive terminal type
         dd = self.socket.recv(1024)
 
-        # display welcome message and login prompt
-        self.socket.send(welcome_message)
+        # send DONT remote flow
+        self.socket.send(
+                        chr(0xff) +
+                        chr(0xfe) +
+                        chr(0x20)
+                        )
+
+        # send DONT Linemode
+        self.socket.send(
+                        chr(0xff) +
+                        chr(0xfe) +
+                        chr(0x22)
+                        )
+
+        # send DONT New Enviroment Option
+        self.socket.send(
+                        chr(0xff) +
+                        chr(0xfe) +
+                        chr(0x27)
+                        )
+
+        # send WONT Status
+        self.socket.send(
+                        chr(0xff) +
+                        chr(0xfc) +
+                        chr(0x05)
+                        )
 
         buff = ''
         while(True):
 
-            # wait for keypress + enter
             data = self.socket.recv(1024)
 
             if data and self.cnt == 0:
-                username = data.strip('\b')
-                self.socket.send(chr(0xff) + chr(0xfb) + chr(0x01))
-                data = self.socket.recv(1024)
-                self.socket.send('password: ')
-                password = self.socket.recv(1024)
-                self.socket.send(chr(0xff) + chr(0xfc) + chr(0x01))
-                data = self.socket.recv(1024)
-                self.socket.send('\n' + self.prompt)
-                text = 't,' + username.strip() + ',' + password.strip() + ',' + strtohex(self.address[0])
-                find = re.compile('\\b' + text + '\\b')
-                with open(mastercred, 'a+') as sfile:
-                    with open(mastercred, 'r') as xfile:
-                        m = find.findall(xfile.read())
-                        if not m:
-                            sfile.write(text + '\n')
-                self.USER = username.strip()
-                self.cnt = 1
-                # extra to change chr-by-chr
-                self.socket.send(chr(0xff) + chr(0xfb) + chr(0x03) + chr(0xff)
-                                 + chr(0xfb) + chr(0x01) + chr(0xff)
-                                 + chr(0xfe) + chr(0x22))
-                ack = self.socket.recv(1024)
+                if len(data) == 2 and '\r' in data:
+                    self.cnt = 1
+                    username = buff
+                    self.USER = buff
+                    self.socket.send('\r\nPassword: ')
+                    buff = ''
+                else:
+                    # send ECHO
+                    self.socket.send(data)
+                    buff = buff + data
+            elif data and self.cnt == 1:
+                if len(data) == 2 and '\r' in data:
+                    self.cnt = 2
+                    password = buff
+                    self.socket.send('\r\n' + self.prompt)
+                    buff = ''
+                    text = 't,' + username.strip() + ',' + password.strip() + ',' + strtohex(self.address[0])
+                    find = re.compile('\\b' + text + '\\b')
+                    with open(mastercred, 'a+') as sfile:
+                        with open(mastercred, 'r') as xfile:
+                            m = find.findall(xfile.read())
+                            if not m:
+                                sfile.write(text + '\n')
+                else:
+                    # no ECHO for password
+                    buff = buff + data
+
             elif data:
                 for x in range(len(data)):
                     if ord(data[x]) == 3:

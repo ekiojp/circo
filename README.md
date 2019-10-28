@@ -28,17 +28,17 @@ Be creative!
 
 There are 3 main elements that make CIRCO:
 
-- The implant main program called `circo.py` which also run `sshd-fake.py` and `telnetd-fake.py` daemons (honeypots)<br>
+- The implant main program called `circo.py` which also run `sshd-fake.py`, `telnetd-fake.py` and `nmap-fooler.py` daemons (honeypots)<br>
 To emulate a Cisco Switch SNMP Agent, we are using forked version of [snmposter](https://github.com/ekiojp/snmposter)
 - To receive extracted credentials via different techniques, we use `carpa.py`
   on an Internet Server, as long is has a public IP and no firewalls in
 front preventing traffic to reach it. We also need a domain pointing NS
 records to our public IP
-- Specific for wireless exfiltration we have `jaula.py`, been tested on a
-  Raspberry Pi Zero with a wireless dongle but should run different hardware
+- Specific for wireless exfiltration we have `jaula_rpz.py` and `jaula_chip, been tested on a
+  Raspberry Pi Zero with a wireless dongle and CHIP (if you happen to own one) but should run different hardware
 without issues
 
-Most of the packet manipulation and crafting is been done with
+All packet manipulation and crafting is been done with
 [Scapy](https://github.com/secdev/scapy) as it has enought flexibility with some
 exceptions (did I say I hate DHCP handshake?)
 
@@ -95,9 +95,26 @@ s,e,<enable>,<src_ip>
 p,<community>,<src_ip>
 ```
 
+### [Net-Creds](https://github.com/DanMcInerney/net-creds)
+```
+n,<Coming up for v1.6>
+```
+
 ----
 
 # Presentations
+
+[AV Tokyo HIVE (Nov-2019)](https://speakerdeck.com/ekio_jp/circo-blackhat-asia-2019-arsenal)
+
+[Code Blue Bluebox (Oct-2019)](https://speakerdeck.com/ekio_jp/circo-blackhat-asia-2019-arsenal)
+
+[HITB GSEC Armory (Aug-2019)](https://speakerdeck.com/ekio_jp/circo-blackhat-asia-2019-arsenal)
+
+[Def CON 27 Packet Hacking Village (Aug-2019)](https://speakerdeck.com/ekio_jp/circo-def-con-27-phv-11-aug-2019)
+
+[Def CON 27 Demo Labs (Aug-2019)](https://speakerdeck.com/ekio_jp/circo-def-con-27-demo-labs)
+
+[Hackers Party Booth (Jul-2019)](https://speakerdeck.com/ekio_jp/circo-blackhat-asia-2019-arsenal)
 
 [BlackHat Asia Arsenal (Mar-2019)](https://speakerdeck.com/ekio_jp/circo-blackhat-asia-2019-arsenal)
 
@@ -114,10 +131,10 @@ p,<community>,<src_ip>
 - [x] Add LLDP Support
 - [x] Include Automation SRC IP in the exfiltration
 - [x] Work on WPAD discovery module
-- [ ] [Faraday](https://github.com/infobyte/faraday) API Integration
+- [x] [Faraday](https://github.com/infobyte/faraday) API Integration
 - [ ] Python 3.x Support
 - [ ] Include Implant ID on exfiltration
-- [ ] Destroy Switch
+- [x] Destroy Switch
 - [ ] LTE Support
 - [ ] Work on No-DHCP module
 - [ ] Wifi Pineapple Module for `jaula.py`

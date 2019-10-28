@@ -3,7 +3,7 @@
 ### Install/Update Packages
 * Install packages
 ```
-sudo apt-get install -y python-pip git
+sudo apt-get install -y python-pip git tcpdump
 ```
 * Install Scapy > 2.3.3
 ```
@@ -33,18 +33,14 @@ vi carpa.py
 ```
 Look for section below `#Config`
 
-* Change AES `passphrase` and `salt`, these need to match `circo.py` config
+* Change AES `PHRASE` and `SALT`, these need to match `circo.py` config
 ```
-phrase = 'Waaaaa! awesome :)'
-salt = 'salgruesa'
+PHRASE = 'Waaaaa! awesome :)'
+SALT = 'salgruesa'
 ```
 * Define `domain/sub-domain` (NS Server IP must be CARPA Public IP)
 ```
-ccname = 'evil.sub.domain'
-```
-* Change relative path of CARPA (optional)
-```
-dirname = '/home/ekio/circo/carpa/'
+CCNAME = 'evil.sub.domain'
 ```
 
 ## Notes

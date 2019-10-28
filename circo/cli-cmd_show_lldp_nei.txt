@@ -3,6 +3,6 @@ Capability codes:
     (W) WLAN Access Point, (P) Repeater, (S) Station, (O) Other
 
 Device ID            Local Intf             Hold-time       Capability      Port ID
-<LLDPNAME>         <INT>        <NUM>            S I         <LLDPINT>
+<LLDPNAME>         <INT>          <NUM>             S I         <LLDPINT>
 
 Total entries displayed: 1

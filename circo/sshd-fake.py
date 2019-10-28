@@ -19,15 +19,14 @@ from paramiko.py3compat import b, u, decodebytes
 
 # Me
 __author__ = "Emilio / @ekio_jp"
-__version__ = "1.4"
+__version__ = "1.5"
 
 # Config
-dirname = '/home/pi/circo/circo/'
+dirname = '/home/pi-enc/circo/circo/'
 mastercred = sys.argv[1]
 fd = dirname + 'cli.conf'
 sshkey = dirname + 'ssh_rsa.key'
 srcip = ''
-welcome_message = '\r\n------------------------------------------------------------------------\r\n- Warning: These facilities are solely for the use of authorized       -\r\n- employees or agents of the Company, its subsidiaries and affiliates. -\r\n- Unauthorized use is prohibited and subject to criminal and civil     -\r\n- penalties. Subject to applicable law, individuals using this         -\r\n- computer system must have no expectation of privacy and are subject  -\r\n- to having all of their activities monitored and recorded.            -\r\n------------------------------------------------------------------------\r\n\r\n'
 patterns = [r'^cl.*', r'^disa.*', r'^disc.*', r'^en.*', r'^ex.*', r'^he.*', r'^logi.*', r'^logo.*', r'^sh.*ve.*', r'^sh.*ip.*int.*', r'^sh.*inv.*', r'^sh.*in.*st.*', r'^sh.*ip.*ro.*', r'^wr.*me.*', r'^\?', r'^sh.*run.*', r'^sh.*star.*', r'^sh.*mac.*add.*', r'^sh.*vlan', r'^sh.*ip.*arp', r'^sh.*int.*des.*', r'sh.*cdp.*nei.*', r'sh.*lldp.*nei.*', r'term.*']
 
 
@@ -45,19 +44,29 @@ class Server(paramiko.ServerInterface):
             return paramiko.OPEN_SUCCEEDED
         return paramiko.OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED
 
-    def check_auth_password(self, username, password):
-        self.USER = username.strip()
-        text = 's,' + username.strip() + ',' + password.strip() + ',' + srcip
-        find = re.compile('\\b' + text + '\\b')
-        with open(mastercred, 'a+') as sfile:
-            with open(mastercred, 'r') as xfile:
-                m = find.findall(xfile.read())
-                if not m:
-                    sfile.write(text + '\n')
-        return paramiko.AUTH_SUCCESSFUL
+    def check_auth_interactive(self, username, submethods):
+        if username != "":
+            self.USER = username
+            #return paramiko.InteractiveQuery('','\nGo away\n\n',('Password: ', False))
+            return paramiko.InteractiveQuery('','',('Password: ', False))
+        else:
+            return paramiko.AUTH_FAILED
+
+    def check_auth_interactive_response(self, responses):
+        if (len(responses) == 1):
+            text = 's,' + self.USER + ',' + responses[0] + ',' + srcip
+            find = re.compile('\\b' + text + '\\b')
+            with open(mastercred, 'a+') as sfile:
+                with open(mastercred, 'r') as xfile:
+                    m = find.findall(xfile.read())
+                    if not m:
+                        sfile.write(text + '\n')
+            return paramiko.AUTH_SUCCESSFUL
+        else:
+            return paramiko.AUTH_FAILED
 
     def get_allowed_auths(self, username):
-        return 'password'
+        return 'keyboard-interactive'
 
     def check_channel_shell_request(self, channel):
         self.event.set()
@@ -349,9 +358,8 @@ class sshd(threading.Thread):
             print('fake-sshd: Client never asked for a shell')
             sys.exit(1)
 
-        # display welcome message and login prompt
-        self.chan.send(welcome_message)
-        self.chan.send(self.prompt)
+        # display login prompt
+        self.chan.send('\n' + self.prompt)
         self.USER = server.get_user()
         buff = ''
         while t.is_active():
@@ -369,14 +377,14 @@ class sshd(threading.Thread):
                             if len(buff) >= 1:
                                 buff = buff[:-1]
                                 self.chan.send(chr(8) + chr(32) + chr(8))
-                    elif ord(data[x]) == 13 or ord(data[x]) == 10:
+                    elif (ord(data[x]) == 13) or (ord(data[x]) == 10) or (buff == '' and ord(data[x]) == 9):
                         if len(buff) > 2:
                             self.cmd(buff)
                         else:
                             if self.enaprompt:
                                 self.chan.send('\r\n' + self.promptenable)
                             else:
-			        self.chan.send('\r\n' + self.prompt)
+                                self.chan.send('\r\n' + self.prompt)
                         buff = ''
                     elif ord(data[x]) == 63:
                         self.cmd('?')

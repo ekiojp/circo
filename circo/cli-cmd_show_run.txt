@@ -127,6 +127,9 @@ ip route 0.0.0.0 0.0.0.0 <GWIP>
 !
 snmp-server community <SNMPC> RO
 !
+banner login ^C
+<MOTD>
+^C
 !
 line con 0
  stopbits 1

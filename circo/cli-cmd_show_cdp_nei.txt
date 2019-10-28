@@ -3,4 +3,4 @@ Capability Codes: R - Router, T - Trans Bridge, B - Source Route Bridge
                   D - Remote, C - CVTA, M - Two-port Mac Relay
 
 Device ID        Local Intrfce     Holdtme    Capability  Platform  Port ID
-<CDPNAME>      Fas 0/3             <NUM>        S I      <CDPMODEL>-<CDPINT>
+<CDPNAME>        Fas 0/3           <NUM>        S I         <CDPMODEL>-<CDPINT>
