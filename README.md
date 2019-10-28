@@ -104,17 +104,17 @@ n,<Coming up for v1.6>
 
 # Presentations
 
-[AV Tokyo HIVE (Nov-2019)](https://speakerdeck.com/ekio_jp/circo-blackhat-asia-2019-arsenal)
+[AV Tokyo HIVE (Nov-2019)](TBC)
 
-[Code Blue Bluebox (Oct-2019)](https://speakerdeck.com/ekio_jp/circo-blackhat-asia-2019-arsenal)
+[Code Blue Bluebox (Oct-2019)](https://speakerdeck.com/ekio_jp/circo-code-blue-2019-bluebox)
 
-[HITB GSEC Armory (Aug-2019)](https://speakerdeck.com/ekio_jp/circo-blackhat-asia-2019-arsenal)
+[HITB GSEC Armory (Aug-2019)](https://speakerdeck.com/ekio_jp/circo-hitb-gsec)
 
 [Def CON 27 Packet Hacking Village (Aug-2019)](https://speakerdeck.com/ekio_jp/circo-def-con-27-phv-11-aug-2019)
 
 [Def CON 27 Demo Labs (Aug-2019)](https://speakerdeck.com/ekio_jp/circo-def-con-27-demo-labs)
 
-[Hackers Party Booth (Jul-2019)](https://speakerdeck.com/ekio_jp/circo-blackhat-asia-2019-arsenal)
+[Hackers Party Booth (Jul-2019)](https://speakerdeck.com/ekio_jp/circo-hackers-party)
 
 [BlackHat Asia Arsenal (Mar-2019)](https://speakerdeck.com/ekio_jp/circo-blackhat-asia-2019-arsenal)
 
