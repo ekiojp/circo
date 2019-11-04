@@ -104,7 +104,7 @@ n,<Coming up for v1.6>
 
 # Presentations
 
-[AV Tokyo HIVE (Nov-2019)](TBC)
+[AV Tokyo HIVE (Nov-2019)](https://speakerdeck.com/ekio_jp/circo-av-tokyo-2019)
 
 [Code Blue Bluebox (Oct-2019)](https://speakerdeck.com/ekio_jp/circo-code-blue-2019-bluebox)
 
