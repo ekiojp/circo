@@ -132,10 +132,11 @@ n,<Coming up for v1.6>
 - [x] Include Automation SRC IP in the exfiltration
 - [x] Work on WPAD discovery module
 - [x] [Faraday](https://github.com/infobyte/faraday) API Integration
+- [x] Destroy Switch
 - [ ] Python 3.x Support
 - [ ] Include Implant ID on exfiltration
-- [x] Destroy Switch
 - [ ] LTE Support
+- [ ] VoIP exfiltration
 - [ ] Work on No-DHCP module
 - [ ] Wifi Pineapple Module for `jaula.py`
 - [ ] Improve performace for [snmposter](https://github.com/ekiojp/snmposter) and support *any* community
