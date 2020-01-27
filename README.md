@@ -1,3 +1,5 @@
+[![Black Hat Arsenal](https://rawgit.com/toolswatch/badges/master/arsenal/asia/2019.svg)](http://www.toolswatch.org/2019/01/black-hat-arsenal-asia-2019-lineup-announced)
+
 # CIRCO
 
 ## Cisco Implant Raspberry Controlled Operations
