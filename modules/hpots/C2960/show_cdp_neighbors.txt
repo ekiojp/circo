@@ -1,0 +1,6 @@
+Capability Codes: R - Router, T - Trans Bridge, B - Source Route Bridge
+                  S - Switch, H - Host, I - IGMP, r - Repeater, P - Phone,
+                  D - Remote, C - CVTA, M - Two-port Mac Relay
+
+Device ID\tLocal Intrfce\tHoldtme\tCapability\tPlatform\tPort ID
+<CDPPEERNAME>\t<INT>\t\t<NUM>\tS I\t\t<CDPPEERMODEL>\t<CDPPEERINT>

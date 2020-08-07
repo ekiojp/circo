@@ -1,0 +1,144 @@
+Building configuration...
+
+Current configuration : 2062 bytes
+!
+! Last configuration change at 20:52:01 UTC Mon Mar 18 2019
+!
+version 15.2
+no service pad
+service timestamps debug datetime msec
+service timestamps log datetime msec
+no service password-encryption
+!
+hostname <NAME>
+!
+boot-start-marker
+boot-end-marker
+!
+!
+enable secret 5 $1$HNcX$DQxC1uVbXXR/kdYVG8oQj.
+!
+username <USER> 5 $1$nOkE/nuWa8knqOOmb/qJkP5k1mp
+no aaa new-model
+system mtu routing 1500
+vtp mode transparent
+!
+!
+no ip domain-lookup
+!
+!
+!
+crypto pki trustpoint TP-self-signed-1916950298
+ enrollment selfsigned
+ subject-name cn=IOS-Self-Signed-Certificate-1916950298
+ revocation-check none
+ rsakeypair TP-self-signed-1916950298
+!
+!
+crypto pki certificate chain TP-self-signed-1916950298
+ certificate self-signed 01
+  3082022B 30820194 A0030201 02020101 300D0609 2A864886 F70D0101 05050030
+  31312F30 2D060355 04031326 494F532D 53656C66 2D536967 6E65642D 43657274
+  69666963 6174652D 31393136 39353032 3938301E 170D3137 30333133 32323432
+  30345A17 0D323030 31303130 30303030 305A3031 312F302D 06035504 03132649
+  4F532D53 656C662D 5369676E 65642D43 65727469 66696361 74652D31 39313639
+  35303239 3830819F 300D0609 2A864886 F70D0101 01050003 818D0030 81890281
+  8100C2BB BF1EED6A F5779E3A 004BA064 F4D1E80C 9D0C3EE0 DDCB884A B4BD975C
+  ADE6FF11 C16D8575 2F1C4727 F3FADEBD 65609947 26555C58 FF9A4E04 BF2F52B6
+  537029C1 90B8C8F9 CDB4A3AA DC40C66B AEDFEFBE C25CE5A9 2433F288 568E58F2
+  595FCB45 1A86E940 780D8D37 B8DC1DDD 785F7DF0 A4AD0B01 3B192348 91569DBB
+  9CDB0203 010001A3 53305130 0F060355 1D130101 FF040530 030101FF 301F0603
+  551D2304 18301680 14932C70 FBD921F5 D902B9C0 7A1DAAA5 74C0B372 57301D06
+  03551D0E 04160414 932C70FB D921F5D9 02B9C07A 1DAAA574 C0B37257 300D0609
+  2A864886 F70D0101 05050003 8181003B D6574FD3 41DD1D84 1F3C3237 AFF4B1C1
+  903C305E 699D7FF0 6806D1B3 C849C82C F8501C62 3E938ECF 828C3352 EEA322CD
+  31299501 F1768485 2D6A4235 DD574A37 C4A5D24B B2539283 0F197183 C5F00B52
+  9200857B 57A86E1A 5C505F1D 915A688F 95CB2F83 FC5A6832 FCEEFAE1 9EC1C2E2
+  C889B28E 030150F1 A6054390 FDE97E
+        quit
+!
+spanning-tree mode rapid-pvst
+spanning-tree extend system-id
+vlan internal allocation policy ascending
+spanning-tree vlan 100 priority 57344
+!
+vlan 100
+ name PC-VLAN
+!
+vlan 200
+ name Voice-Phone
+!
+!
+interface FastEthernet0/1
+!
+interface FastEthernet0/2
+!
+interface FastEthernet0/3
+ description **SW**
+ switchport access vlan 100
+ switchport mode access
+ spanning-tree portfast
+!
+interface FastEthernet0/4
+ description **PC**
+ switchport access vlan 100
+ switchport mode access
+ spanning-tree portfast
+!
+interface FastEthernet0/5
+ description **PC**
+ switchport access vlan 100
+ switchport mode access
+ spanning-tree portfast
+!
+interface FastEthernet0/6
+ description **PC**
+ switchport access vlan 100
+ switchport mode access
+ spanning-tree portfast
+!
+interface FastEthernet0/7
+ description **PC**
+ switchport access vlan 100
+ switchport mode access
+ spanning-tree portfast
+!
+interface FastEthernet0/8
+ description **PC**
+ switchport access vlan 100
+ switchport mode access
+ spanning-tree portfast
+!
+interface GigabitEthernet0/1
+!
+interface Vlan1
+ no ip address
+ shutdown
+!
+interface Vlan100
+ description **SW**
+ ip address <IP> <MASK>
+!
+no ip http server
+no ip http secure-server
+ip routing
+ip route 0.0.0.0 0.0.0.0 <GWIP>
+!
+!
+snmp-server community <SNMPC> RO
+!
+banner login ^C
+<MOTD>
+^C
+!
+line con 0
+ stopbits 1
+line aux 0
+ stopbits 1
+line vty 0 4
+ login local
+line vty 5 15
+ login local
+!
+end
+

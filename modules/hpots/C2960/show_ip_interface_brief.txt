@@ -1,0 +1,12 @@
+Interface\t\tIP-Address\tOK? Method Status\t\tProtocol
+Vlan1\t\t\tunassigned\tYES NVRAM  down\t\tdown
+Vlan100\t\t\t<IP>\tYES NVRAM  up\t\tup
+FastEthernet0/1\t\tunassigned\tYES unset  down\t\tdown
+FastEthernet0/2\t\tunassigned\tYES unset  down\t\tdown
+FastEthernet0/3\t\tunassigned\tYES unset  up\t\tup
+FastEthernet0/4\t\tunassigned\tYES unset  down\t\tdown
+FastEthernet0/5\t\tunassigned\tYES unset  down\t\tdown
+FastEthernet0/6\t\tunassigned\tYES unset  down\t\tdown
+FastEthernet0/7\t\tunassigned\tYES unset  down\t\tdown
+FastEthernet0/8\t\tunassigned\tYES unset  down\t\tdown
+GigabitEthernet0/1\tunassigned\tYES unset  down\t\tdown

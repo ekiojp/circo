@@ -1,0 +1,58 @@
+(venv) root@silencio:/home/ec/JAULA# ./jaula.py -v -f 87.6 -w wlan1 -l MO.txt
+     _   _   _   _ _        _    
+    | | / \ | | | | |      / \   
+ _  | |/ _ \| | | | |     / _ \  
+| |_| / ___ \ |_| | |___ / ___ \ 
+ \___/_/   \_\___/|_____/_/   \_\
+                                 
+
+Author: Emilio / @ekio_jp
+Version: 2.020
+
+DEBUG:Listing FM Freq: 87.6
+DEBUG:Listing Wireless Channel: 10
+Listening....
+Credentials via Wifi found:
+2020-07-29 14:00:13 t,hola,fede,10.10.10.100
+Credentials via FM found:
+2020-07-29 14:00:38 t,hola,fede,10.10.10.100
+Credentials via Wifi found:
+2020-07-29 14:01:13 t,hola,fede,10.10.10.100
+Credentials via FM found:
+2020-07-29 14:01:38 t,hola,fede,10.10.10.100
+^C(venv) root@silencio:/home/ec/JAULA# ./jaula.py -v -f 87.6 -w wlan1 -l MO.txt
+     _   _   _   _ _        _    
+    | | / \ | | | | |      / \   
+ _  | |/ _ \| | | | |     / _ \  
+| |_| / ___ \ |_| | |___ / ___ \ 
+ \___/_/   \_\___/|_____/_/   \_\
+                                 
+
+Author: Emilio / @ekio_jp
+Version: 2.020
+
+DEBUG:Listing FM Freq: 87.6
+DEBUG:Listing Wireless Channel: 10
+Listening....
+(venv) root@silencio:/home/ec/JAULA# 
+(venv) root@silencio:/home/ec/JAULA# ./jaula.py
+     _   _   _   _ _        _    
+    | | / \ | | | | |      / \   
+ _  | |/ _ \| | | | |     / _ \  
+| |_| / ___ \ |_| | |___ / ___ \ 
+ \___/_/   \_\___/|_____/_/   \_\
+                                 
+
+Author: Emilio / @ekio_jp
+Version: 2.020
+
+usage: jaula.py [-h] [-v] [-f <87.6>] [-w <wlan0>] -l <logfile>
+
+optional arguments:
+  -h, --help     show this help message and exit
+  -v, --verbose  Enable debugging
+  -f <87.6>      FM Freq
+  -w <wlan0>     Wireles interface
+  -l <logfile>   Log File
+(venv) root@silencio:/home/ec/JAULA# 
+
