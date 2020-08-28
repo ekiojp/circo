@@ -103,7 +103,7 @@ v,<hash>
 
 # Presentations
 
-[DEF CON 28 Demo Labs (Aug-2020)](https://media.defcon.org/DEF%20CON%2028/DEF%20CON%20Sage%20Mode%20demo%20labs/DEF%20CON%20Safe%20Mode%20Demo%20Labs%20-%20Emilio%20Couto%20-%20CIRCO%20v2.pdf)
+[DEF CON 28 Demo Labs (Aug-2020)](https://media.defcon.org/DEF%20CON%2028/DEF%20CON%20Safe%20Mode%20demo%20labs/DEF%20CON%20Safe%20Mode%20-%20Demo%20Labs%20-%20Emilio%20Couto%20-%20CIRCO%20v2.pdf)
 
 [AV Tokyo HIVE (Nov-2019)](https://speakerdeck.com/ekio_jp/circo-av-tokyo-2019)
 
